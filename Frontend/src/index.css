@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-950 text-slate-100 antialiased;
+    background-image:
+      radial-gradient(ellipse 90% 60% at 15% -10%, rgba(20, 184, 166, 0.13), transparent),
+      radial-gradient(ellipse 70% 50% at 95% 5%, rgba(14, 116, 144, 0.22), transparent),
+      linear-gradient(160deg, #0a2530 0%, #0f3540 55%, #0b2732 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-primary-500/35 text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-400/60;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-2 border-surface-950 bg-surface-700;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-750;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-surface-700/60 bg-surface-900/70 backdrop-blur-sm transition-colors;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/50 hover:shadow-glow;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-500 text-surface-950 hover:bg-primary-400 active:scale-[0.98] shadow-glow;
+  }
+
+  .btn-ghost {
+    @apply btn border border-surface-700 bg-surface-800/70 text-slate-200 hover:border-primary-500/50 hover:bg-surface-750 active:scale-[0.98];
+  }
+
+  .btn-danger {
+    @apply btn border border-rose-900 bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 active:scale-[0.98];
+  }
+
+  .input {
+    @apply rounded-xl border border-surface-700 bg-surface-950/80 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-primary-400;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}

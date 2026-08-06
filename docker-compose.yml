@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: steam_clan_admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d steam_clan_admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/API/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=steam_clan_admin;Username=postgres;Password=postgres
+      Redis__ConnectionString: redis:6379
+      Hangfire__Enabled: "true"
+      Database__AutoMigrate: "true"
+      Steam__OpenIdRealm: http://localhost:8080
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-CHANGE_ME_PLACEHOLDER_SECRET_KEY_64_CHARS_MIN_LONG_RANDOM_STRING_0000000000}
+      Steam__ApiKey: ${STEAM_API_KEY:-}
+    ports:
+      - "8080:8080"
+
+  client:
+    build:
+      context: ./Frontend
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:

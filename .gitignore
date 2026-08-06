@@ -1,0 +1,45 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+Logs/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+*.env
+.env.*
+appsettings.Production.json
+
+# Внутренние документы проекта (не публиковать на GitHub)
+steam-clan-admin-panel.md
+AGENTS.md
+CODESTYLE.md
+steam-clan-admin-panel-TZ.md
+docs/
+
+# Тесты и логи
+TestResults/
+*.trx
+*.coverage
+*.log
+
+# Публикация/кэш/секреты
+publish/
+coverage/
+.angular/
+.eslintcache
+*.pem
+*.key
+
+# OS
+Thumbs.db
+.DS_Store
