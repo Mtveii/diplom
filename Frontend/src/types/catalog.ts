@@ -28,3 +28,41 @@ export interface CatalogGameDetailDto {
   minimumRequirements: string | null
   screenshots: string[]
 }
+
+export interface UnifiedSourceUrlsDto {
+  gog: string | null
+  epic: string | null
+  freetogame: string | null
+}
+
+export interface UnifiedGameDto {
+  id: string
+  steamAppId: number | null
+  name: string
+  price: number
+  isFree: boolean
+  description: string | null
+  image: string | null
+  gallery: string[]
+  developer: string | null
+  publisher: string | null
+  genres: string[]
+  platforms: string[]
+  rating: number | null
+  ownersEstimate: string | null
+  releaseDate: string | null
+  sourceUrls: UnifiedSourceUrlsDto
+  sources: string[]
+}
+
+export interface UnifiedCatalogPageDto {
+  page: number
+  totalPages: number
+  totalResults: number
+  items: UnifiedGameDto[]
+}
+
+export interface GogGameDetailsDto {
+  description: string | null
+  systemRequirements: string | null
+}

@@ -19,8 +19,16 @@ export const analyticsApi = {
   cohorts: (months = 6) =>
     httpClient.get<CohortRowDto[]>('/analytics/cohorts', { params: { months } }).then((r) => r.data),
 
-  export: async (format: 'Pdf' | 'Excel'): Promise<void> => {
-    const response = await httpClient.post('/analytics/export', { format }, { responseType: 'blob' })
+  export: async (format: 'Pdf' | 'Excel', from?: Date, to?: Date): Promise<void> => {
+    const response = await httpClient.post(
+      '/analytics/export',
+      {
+        format,
+        from: from?.toISOString() ?? null,
+        to: to?.toISOString() ?? null,
+      },
+      { responseType: 'blob' },
+    )
     const disposition = response.headers['content-disposition'] as string | undefined
     const match = disposition?.match(/filename="?([^"]+)"?/)
     const fileName = match?.[1] ?? `clan-report.${format === 'Pdf' ? 'pdf' : 'xlsx'}`

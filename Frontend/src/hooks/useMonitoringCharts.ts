@@ -14,7 +14,6 @@ export function useMonitoringCharts() {
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    setLoading(true)
     const [activityData, heatmapData, topData] = await Promise.all([
       monitoringApi.activity(period),
       monitoringApi.heatmap(30),

@@ -38,6 +38,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<NotificationChannelSetting> NotificationChannelSettings => Set<NotificationChannelSetting>();
 
+    public DbSet<CatalogGame> CatalogGames => Set<CatalogGame>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

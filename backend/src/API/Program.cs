@@ -12,6 +12,7 @@ using SteamAdminPanel.Api;
 using SteamAdminPanel.Api.Hubs;
 using SteamAdminPanel.Api.Middleware;
 using SteamAdminPanel.Application;
+using SteamAdminPanel.Application.Options;
 using SteamAdminPanel.Application.Ports;
 using SteamAdminPanel.Domain.Enums;
 using SteamAdminPanel.Infrastructure;

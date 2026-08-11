@@ -10,6 +10,8 @@ public static class RecurringJobs
     public const string AlertEvaluationJobId = "evaluate-alerts";
     public const string WarningExpiryJobId = "expire-warnings";
     public const string WeeklyDigestJobId = "weekly-digest";
+    public const string ExternalCatalogSourcesJobId = "load-external-catalog-sources";
+    public const string CatalogGogBackfillJobId = "backfill-gog-catalog";
 
     /// <summary>
     /// Регистрация recurring jobs по ТЗ (раздел 4.4):
@@ -51,6 +53,20 @@ public static class RecurringJobs
             WeeklyDigestJobId,
             job => job.RunAsync(),
             Cron.Weekly(DayOfWeek.Monday, 9, 0),
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        // Малые источники каталога грузим каждые 6 часов (идемпотентно, повторные прогоны пропускаются).
+        manager.AddOrUpdate<ExternalCatalogSourcesJob>(
+            ExternalCatalogSourcesJobId,
+            job => job.RunAsync(),
+            Cron.HourInterval(6),
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        // Фоновая докачка страниц GOG — раз в сутки (быстрый старт с 1-й страницы, дальше воркер идёт по нарастающей).
+        manager.AddOrUpdate<CatalogGogBackfillJob>(
+            CatalogGogBackfillJobId,
+            job => job.RunAsync(),
+            Cron.Daily(4, 0),
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
     }
 }

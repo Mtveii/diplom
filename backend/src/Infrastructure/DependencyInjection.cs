@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using SteamAdminPanel.Application.Options;
 using SteamAdminPanel.Application.Ports;
 using SteamAdminPanel.Infrastructure.Authentication;
 using SteamAdminPanel.Infrastructure.Caching;
@@ -30,11 +32,16 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(NotificationOptions.SectionName));
         services.AddOptions<FreeToGameOptions>()
             .Bind(configuration.GetSection(FreeToGameOptions.SectionName));
+        services.AddOptions<CatalogOptions>()
+            .Bind(configuration.GetSection(CatalogOptions.SectionName));
 
         // --- Persistence ---
         var connectionString = configuration.GetConnectionString("DefaultConnection")
                                ?? "Host=localhost;Port=5432;Database=steam_clan_admin;Username=postgres;Password=postgres";
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        var dataSource = dataSourceBuilder.Build();
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(dataSource));
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
@@ -44,9 +51,15 @@ public static class DependencyInjection
 
         // --- Clocks / cache ---
         services.AddSingleton<IClock, SystemClock>();
-        services.AddStackExchangeRedisCache(options =>
-            options.Configuration = configuration.GetSection(RedisOptions.SectionName)["ConnectionString"]);
-        services.AddScoped<ICacheService, RedisCacheService>();
+        var redisConnectionString = configuration.GetSection(RedisOptions.SectionName)["ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = $"{redisConnectionString},abortConnect=false,connectTimeout=500,syncTimeout=500,responseTimeout=500,connectRetry=1,reconnectRetryPolicy=None";
+            });
+        }
+        services.AddSingleton<ICacheService, RedisCacheService>();
 
         // --- Auth ---
         services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
@@ -70,6 +83,16 @@ public static class DependencyInjection
         services.AddHttpClient<ISteamSpyCatalogClient, SteamSpyCatalogClient>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SteamClanAdminPanel/1.0");
+        });
+        services.AddHttpClient<IGogClient, GogClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SteamClanAdminPanel/1.0");
+        });
+        services.AddHttpClient<IEpicGamesClient, EpicGamesClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("SteamClanAdminPanel/1.0");
         });
 

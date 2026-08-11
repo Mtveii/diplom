@@ -71,11 +71,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <div>
         <h1 className="text-xl font-bold text-white">Настройки</h1>
         <p className="mt-0.5 text-sm text-slate-400">Каналы уведомлений и роли пользователей</p>
       </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-6">
       {message && (
         <div className="flex items-center gap-2 rounded-xl border border-success-600/40 bg-success-500/10 px-3 py-2.5 text-sm text-success-400">
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -179,6 +182,8 @@ export default function SettingsPage() {
         Дипломный проект «Админ-панель для Steam-клана»: ASP.NET Core 8 + React + TypeScript + PostgreSQL + Redis + Hangfire + SignalR.
         Steam API ключ настраивается в <code className="rounded bg-surface-800 px-1.5 py-0.5 text-slate-300">appsettings.json</code> (секция Steam.ApiKey).
       </section>
+      </div>
+      </div>
     </div>
   )
 }

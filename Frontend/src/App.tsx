@@ -1,12 +1,15 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from '@/components/AppLayout'
+import CommandPalette from '@/components/CommandPalette'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import Toaster from '@/components/Toaster'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import ApplicationsPage from '@/pages/ApplicationsPage'
 import AuthPage from '@/pages/AuthPage'
 import ClanMembersPage from '@/pages/ClanMembersPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
+import GameDetailPage from '@/pages/GameDetailPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -57,6 +60,16 @@ export default function App() {
           }
         />
         <Route
+          path="/games/:id"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <GameDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/analytics"
           element={
             <ProtectedRoute requiredRole={['Analyst', 'Moderator', 'SuperAdmin']}>
@@ -79,6 +92,8 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster />
+      <CommandPalette />
     </BrowserRouter>
   )
 }

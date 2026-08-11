@@ -55,6 +55,7 @@ export default function Chart({ data, label, height = 280, color = '#2dd4bf' }: 
             <Area
               type="monotone"
               dataKey="value"
+              name="Онлайн"
               stroke={color}
               strokeWidth={2.5}
               fill="url(#chartFill)"

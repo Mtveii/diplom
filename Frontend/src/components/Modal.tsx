@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 interface ModalProps {
@@ -9,13 +10,26 @@ interface ModalProps {
 }
 
 export default function Modal({ open, title, onClose, children, wide }: ModalProps) {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
+
   if (!open) {
     return null
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-md"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose()
@@ -23,8 +37,8 @@ export default function Modal({ open, title, onClose, children, wide }: ModalPro
       }}
     >
       <div
-        className={`max-h-[85vh] w-full animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/70 bg-surface-900 p-6 shadow-card ${
-          wide ? 'max-w-4xl' : 'max-w-2xl'
+        className={`max-h-[85vh] w-full animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/70 p-6 shadow-card backdrop-blur-md ${
+          wide ? 'max-w-5xl' : 'max-w-2xl'
         }`}
       >
         <div className="mb-5 flex items-center justify-between">

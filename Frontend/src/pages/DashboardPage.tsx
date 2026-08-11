@@ -1,10 +1,23 @@
-﻿import { Link } from 'react-router-dom'
+﻿import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Chart from '@/components/Chart'
 import HeatmapChart from '@/components/HeatmapChart'
 import Spinner from '@/components/Spinner'
 import StatCard from '@/components/StatCard'
+import { useAlerts } from '@/hooks/useAlerts'
 import { useDashboard } from '@/hooks/useDashboard'
 import { useMonitoringCharts } from '@/hooks/useMonitoringCharts'
+import { analyticsApi } from '@/services/api/analytics.api'
+import { formatHours, formatRelativeDate } from '@/utils/format'
+import type { PeriodComparisonDto } from '@/types/analytics'
+
+type TimeFilterKey = 'today' | 'week' | 'month'
+
+const timeFilters: { key: TimeFilterKey; label: string; apiPeriod: 'day' | 'week' | 'month'; compareDays: number }[] = [
+  { key: 'today', label: 'Сегодня', apiPeriod: 'day', compareDays: 1 },
+  { key: 'week', label: '7 дней', apiPeriod: 'week', compareDays: 7 },
+  { key: 'month', label: '30 дней', apiPeriod: 'month', compareDays: 30 },
+]
 
 const medalColors = ['text-warning-400', 'text-slate-300', 'text-amber-700']
 
@@ -76,6 +89,32 @@ const quickActions = [
     color: 'text-warning-400',
     bg: 'from-warning-500/20 to-warning-500/5',
   },
+  {
+    to: '/games',
+    title: 'Последние алерты',
+    description: 'Триггеры алертов и каналы',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+    ),
+    color: 'text-danger-400',
+    bg: 'from-danger-500/20 to-danger-500/5',
+  },
+  {
+    to: '/settings',
+    title: 'Настройки клана',
+    description: 'Каналы, роли, безопасность',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    ),
+    color: 'text-slate-400',
+    bg: 'from-slate-500/20 to-slate-500/5',
+  },
 ]
 
 function ProgressRing({
@@ -117,24 +156,127 @@ function ProgressRing({
   )
 }
 
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+
 export default function DashboardPage() {
-  const { summary, loading } = useDashboard()
-  const { activity, heatmap, topPlayers, period, setPeriod, loading: chartsLoading } = useMonitoringCharts()
+  const { summary, loading, reload: reloadSummary } = useDashboard()
+  const { activity, heatmap, topPlayers, setPeriod, loading: chartsLoading, reload: reloadCharts } = useMonitoringCharts()
+  const alerts = useAlerts()
+
+  const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('week')
+  const currentFilter = timeFilters.find((filter) => filter.key === timeFilter) ?? timeFilters[1]
+
+  const [comparison, setComparison] = useState<PeriodComparisonDto | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    setPeriod(currentFilter.apiPeriod)
+  }, [currentFilter.apiPeriod, setPeriod])
+
+  useEffect(() => {
+    let cancelled = false
+    analyticsApi
+      .compare(currentFilter.compareDays)
+      .then((data) => {
+        if (!cancelled) {
+          setComparison(data)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComparison(null)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [currentFilter.compareDays])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([reloadCharts(), reloadSummary()])
+      const data = await analyticsApi.compare(currentFilter.compareDays).catch(() => null)
+      setComparison(data)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   if (loading || chartsLoading) {
     return <Spinner label="Загрузка данных клана..." fullPage />
   }
 
   const onlinePercent = summary && summary.totalMembers > 0 ? (summary.onlineNow / summary.totalMembers) * 100 : 0
+  const lastActivityAt = activity.length
+    ? new Date(Math.max(...activity.map((point) => new Date(point.timestamp).getTime()))).toISOString()
+    : null
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-white">Дашборд клана</h1>
-        <p className="mt-1 text-sm text-slate-400">Сводка активности Steam-клана в реальном времени</p>
+    <div className="flex h-full min-h-0 flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white">Дашборд клана</h1>
+          <p className="mt-1 text-sm text-slate-400">Сводка активности Steam-клана в реальном времени</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-success-400" />
+            Live · обновлено {lastActivityAt ? formatRelativeDate(lastActivityAt, now) : '—'}
+          </div>
+          <button
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-lg border border-surface-700 bg-surface-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-surface-800 disabled:opacity-60"
+          >
+            <svg
+              className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M23 4v6h-6" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Обновить
+          </button>
+          <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
+            {timeFilters.map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setTimeFilter(filter.key)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  timeFilter === filter.key
+                    ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-glow'
+                    : 'text-slate-400 hover:bg-surface-800'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           label="Всего участников"
           value={summary?.totalMembers ?? 0}
@@ -174,13 +316,43 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          label="Активность за неделю"
-          value={summary?.activeThisWeek ?? 0}
+          label="Игроков за период"
+          value={comparison?.currentActivePlayers ?? '—'}
           accent="blue"
+          delta={comparison?.activePlayersChangePercent ?? null}
+          hint={`уникальных игроков за ${currentFilter.label.toLowerCase()}`}
           icon={
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3v16a2 2 0 0 0 2 2h16" />
               <path d="M7 13l4-4 4 4 5-5" />
+            </svg>
+          }
+        />
+        <StatCard
+          label="Сыграно за период"
+          value={comparison ? formatHours(comparison.currentPlaytimeMinutes) : '—'}
+          accent="amber"
+          delta={comparison?.playtimeChangePercent ?? null}
+          hint={`игровых часов за ${currentFilter.label.toLowerCase()}`}
+          icon={
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+          }
+        />
+        <StatCard
+          label="Средний онлайн за период"
+          value={comparison ? Math.round(comparison.currentAverageDailyOnline) : '—'}
+          accent="green"
+          delta={comparison?.averageOnlineChangePercent ?? null}
+          hint={`в среднем в день за ${currentFilter.label.toLowerCase()}`}
+          icon={
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           }
         />
@@ -211,34 +383,31 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-white">Активность клана</h2>
-          <p className="text-xs text-slate-500">Онлайн и занятость по времени суток</p>
+          <p className="text-xs text-slate-500">
+            Онлайн и занятость по времени суток · период {currentFilter.label.toLowerCase()}
+          </p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
-          {(['day', 'week', 'month'] as const).map((value) => (
-            <button
-              key={value}
-              onClick={() => setPeriod(value)}
-              className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-all ${
-                period === value
-                  ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white shadow-glow'
-                  : 'text-slate-400 hover:bg-surface-800'
-              }`}
-            >
-              {value === 'day' ? 'День' : value === 'week' ? 'Неделя' : 'Месяц'}
-            </button>
-          ))}
-        </div>
+        <Link
+          to="/analytics"
+          className="flex items-center gap-1 rounded-lg border border-surface-700 bg-surface-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-surface-800"
+        >
+          Открыть аналитику
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14" />
+            <path d="M12 5l7 7-7 7" />
+          </svg>
+        </Link>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Chart
-          label="Онлайн по часам"
+          label="Онлайн за период"
           data={activity.map((point) => ({ timestamp: point.timestamp, value: point.onlineCount }))}
         />
         <HeatmapChart data={heatmap} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-2">
         <div className="card p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-200">Загрузка клана</h3>
           <div className="flex justify-around">
@@ -259,7 +428,9 @@ export default function DashboardPage() {
         <div className="card p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-200">Топ игроков по playtime</h3>
-            <span className="badge border border-surface-700 bg-surface-800/60 text-slate-300">за период</span>
+            <span className="badge border border-surface-700 bg-surface-800/60 text-slate-300">
+              за {currentFilter.label.toLowerCase()}
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             {topPlayers.length === 0 ? (
@@ -297,11 +468,64 @@ export default function DashboardPage() {
         </div>
 
         <div className="card p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-200">Последние алерты</h3>
+            {alerts.unreadCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-500/20 px-1.5 text-[11px] font-bold text-danger-400">
+                {alerts.unreadCount}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            {alerts.history.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
+                Алертов пока не было — правила не настроены или джоба не отработала
+              </div>
+            ) : (
+              alerts.history.slice(0, 5).map((alert) => (
+                <button
+                  key={alert.id}
+                  onClick={() => void alerts.markAsRead(alert.id)}
+                  className="group flex items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface-800/60"
+                >
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
+                      alert.isRead
+                        ? 'border-surface-700 bg-surface-800/40 text-slate-500'
+                        : 'border-warning-500/40 bg-warning-500/10 text-warning-400'
+                    }`}
+                  >
+                    <BellIcon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className={`truncate text-sm ${alert.isRead ? 'text-slate-300' : 'font-medium text-slate-100'}`}>
+                      {alert.ruleName}
+                    </div>
+                    <div className="truncate text-xs text-slate-500">{alert.message}</div>
+                  </div>
+                  <div className="shrink-0 text-[11px] text-slate-500">{formatRelativeDate(alert.triggeredAt, now)}</div>
+                </button>
+              ))
+            )}
+          </div>
+          <Link
+            to="/games"
+            className="mt-3 flex items-center justify-center gap-1 rounded-lg border border-surface-700 bg-surface-800/40 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-surface-800"
+          >
+            View all
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="M12 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        <div className="card p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-200">Быстрые действия</h3>
           <div className="flex flex-col gap-2.5">
             {quickActions.map((action) => (
               <Link
-                key={action.to}
+                key={`${action.to}-${action.title}`}
                 to={action.to}
                 className="group flex items-center gap-3 rounded-xl border border-surface-700 bg-surface-800/40 p-3 transition-all hover:-translate-y-0.5 hover:border-surface-750"
               >
@@ -327,6 +551,8 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   )

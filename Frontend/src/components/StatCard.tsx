@@ -6,6 +6,7 @@ interface StatCardProps {
   accent?: 'green' | 'blue' | 'amber' | 'red' | 'slate'
   icon?: ReactNode
   hint?: string
+  delta?: number | null
 }
 
 const accents: Record<NonNullable<StatCardProps['accent']>, { text: string; bar: string }> = {
@@ -16,8 +17,9 @@ const accents: Record<NonNullable<StatCardProps['accent']>, { text: string; bar:
   slate: { text: 'text-slate-200', bar: 'from-slate-500 to-slate-300' },
 }
 
-export default function StatCard({ label, value, accent = 'slate', icon, hint }: StatCardProps) {
+export default function StatCard({ label, value, accent = 'slate', icon, hint, delta }: StatCardProps) {
   const palette = accents[accent]
+  const hasDelta = typeof delta === 'number' && Number.isFinite(delta)
   return (
     <div className="card card-hover group relative overflow-hidden p-5">
       <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${palette.bar}`} />
@@ -25,6 +27,27 @@ export default function StatCard({ label, value, accent = 'slate', icon, hint }:
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
           <div className={`mt-2 text-3xl font-bold tabular-nums ${palette.text}`}>{value}</div>
+          {hasDelta && delta !== 0 && (
+            <div
+              className={`mt-1.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${
+                delta! > 0
+                  ? 'border-success-500/30 bg-success-500/10 text-success-400'
+                  : 'border-danger-500/30 bg-danger-500/10 text-danger-400'
+              }`}
+              title="к прошлому периоду"
+            >
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {delta! >= 0 ? <path d="M7 17L17 7" /> : <path d="M7 7l10 10" />}
+                {delta! >= 0 ? (
+                  <path d="M7 7h10v10" />
+                ) : (
+                  <path d="M17 7v10H7" />
+                )}
+              </svg>
+              {delta! > 0 ? '+' : ''}
+              {delta!.toFixed(1)}%
+            </div>
+          )}
           {hint && <div className="mt-1 text-[11px] text-slate-500">{hint}</div>}
         </div>
         {icon && (
