@@ -13,7 +13,7 @@ type Tab = ApplicationStatus | 'All'
 type DateFilter = 'any' | '1d' | '7d' | '30d'
 type ReviewerFilter = 'any' | 'me' | 'none'
 
-const REJECT_REASONS = ['Not enough information', "Doesn't meet requirements", 'Duplicate', 'Other']
+const REJECT_REASONS = ['Недостаточно информации', 'Не соответствует требованиям', 'Дубликат заявки', 'Другое']
 
 const STATUS_BADGE: Record<ApplicationStatus, string> = {
   Pending: 'bg-warning-500/15 text-warning-400',
@@ -165,7 +165,7 @@ export default function ApplicationsPage() {
         <p className="mt-1 text-sm text-slate-400">Рассмотрение кандидатов на вступление в клан</p>
       </div>
 
-      <div className="card flex flex-col gap-3 p-4 sm:flex-row">
+      <div className="card card-hud card-hud--sm flex flex-col gap-3 p-4 sm:flex-row">
         <input
           value={newSteamId}
           onChange={(event) => setNewSteamId(event.target.value)}
@@ -181,13 +181,13 @@ export default function ApplicationsPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-800/40 p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-surface-700 bg-surface-800/40 p-1">
           {(['Pending', 'Approved', 'Rejected', 'All'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                tab === t ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-100'
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                tab === t ? 'hud-tab-active' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               {t}
@@ -232,7 +232,7 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div>
         {bulkSelected.size > 0 && (
           <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary-500/40 bg-surface-900/90 px-4 py-2.5 shadow-glow backdrop-blur-md">
             <span className="text-sm text-slate-200">
@@ -253,7 +253,7 @@ export default function ApplicationsPage() {
         )}
 
         {filtered.length === 0 ? (
-          <div className="card flex h-full flex-col items-center justify-center border-dashed">
+          <div className="card card-hud flex h-full flex-col items-center justify-center border-dashed">
             <EmptyState
               title="Заявок не найдено"
               description={tab === 'Pending' ? 'Новых заявок нет — все ворота закрыты' : 'Попробуйте изменить фильтры'}
@@ -274,7 +274,7 @@ export default function ApplicationsPage() {
             {filtered.map((application) => {
               const isPending = application.status === 'Pending'
               return (
-                <div key={application.id} className="card card-hover flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap">
+                <div key={application.id} className="card card-hover card-hud card-hud--sm flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap">
                   {isPending && (
                     <input
                       type="checkbox"
@@ -320,7 +320,7 @@ export default function ApplicationsPage() {
                     <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => setApproveFor(application)}
-                        className="rounded-lg bg-success-600 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-success-500 active:scale-95"
+                        className="rounded-lg bg-success-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-success-500 active:scale-95"
                       >
                         Принять
                       </button>
@@ -328,7 +328,7 @@ export default function ApplicationsPage() {
                         onClick={() =>
                           setRejectFor({ application, reason: REJECT_REASONS[0], comment: '' })
                         }
-                        className="rounded-lg bg-danger-600 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-danger-500 active:scale-95"
+                        className="rounded-lg bg-danger-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-danger-500 active:scale-95"
                       >
                         Отклонить
                       </button>

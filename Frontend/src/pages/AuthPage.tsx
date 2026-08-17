@@ -126,7 +126,7 @@ export default function AuthPage() {
             <div className="text-lg font-bold text-white">Steam Clan Admin</div>
           </div>
 
-          <div className="animate-fade-up rounded-2xl border border-surface-700 bg-surface-900/80 p-8 shadow-card backdrop-blur-sm">
+          <div className="card-hud animate-fade-up rounded-2xl border border-surface-700 bg-surface-900/80 p-8 shadow-card backdrop-blur-sm">
             <h2 className="text-xl font-bold text-white">Вход в панель</h2>
             <p className="mb-6 mt-1 text-sm text-slate-400">Войдите через Steam или по учётной записи администратора</p>
 

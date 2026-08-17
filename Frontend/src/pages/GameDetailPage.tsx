@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { EmptyState, PageSkeleton } from '@/components/PageState'
 import AlertRulesPanel from '@/components/AlertRulesPanel'
+import { chartTheme } from '@/styles/chartTheme'
 import StatCard from '@/components/StatCard'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { steamApi } from '@/services/api/notifications.api'
@@ -164,7 +165,7 @@ export default function GameDetailPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium capitalize transition-colors ${
-              tab === t ? 'border-primary-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'
+              tab === t ? 'hud-tab-active border-primary-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             {t}
@@ -183,13 +184,17 @@ export default function GameDetailPage() {
               />
             )}
             {game.description && (
-              <div className="card p-5">
-                <h3 className="mb-2 text-sm font-semibold text-slate-200">Description</h3>
+              <div className="card card-hud p-5">
+                <div className="card-header-hud mb-2">
+                  <h3 className="card-header-hud__title">Description</h3>
+                </div>
                 <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{game.description}</p>
               </div>
             )}
-            <div className="card p-5">
-              <h3 className="mb-3 text-sm font-semibold text-slate-200">Основные данные</h3>
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-3">
+                <h3 className="card-header-hud__title">Основные данные</h3>
+              </div>
               <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
                 {infoRows.map((row) => (
                   <div key={row.label} className="flex justify-between gap-3 border-b border-surface-800/60 pb-1.5 text-sm">
@@ -204,7 +209,7 @@ export default function GameDetailPage() {
 
         {tab === 'price' && (
           <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 label="Current price"
                 value={monitor?.currentPrice != null ? (monitor.currentPrice > 0 ? `$${(monitor.currentPrice / 100).toFixed(2)}` : 'Бесплатно') : '—'}
@@ -227,10 +232,10 @@ export default function GameDetailPage() {
               />
             </div>
 
-            <div className="card p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-slate-200">Price trend</h3>
-                <div className="flex gap-1">
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-4">
+                <h3 className="card-header-hud__title">Price trend</h3>
+                <div className="card-header-hud__subtitle flex gap-1">
                   {PERIODS.map((period) => (
                     <button
                       key={period.label}
@@ -253,13 +258,13 @@ export default function GameDetailPage() {
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid stroke="#16404f" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="timestamp" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#16404f' }} tickLine={false} />
-                    <YAxis yAxisId="percent" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
+                    <YAxis yAxisId="percent" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis
                       yAxisId="price"
                       orientation="right"
-                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      tick={{ fill: chartTheme.axisTick, fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                       width={46}
@@ -267,11 +272,11 @@ export default function GameDetailPage() {
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#0b2732',
-                        border: '1px solid #16404f',
-                        borderRadius: 12,
-                        boxShadow: '0 12px 30px -10px rgba(4,20,26,0.9)',
-                        fontSize: 12,
+                        background: chartTheme.tooltip.background,
+                        border: chartTheme.tooltip.border,
+                        borderRadius: chartTheme.tooltip.borderRadius,
+                        boxShadow: chartTheme.tooltip.boxShadow,
+                        fontSize: chartTheme.tooltip.fontSize,
                       }}
                       formatter={(value, name) => (name === 'Цена, $' ? [`$${Number(value).toFixed(2)}`, name] : [value, name])}
                     />
@@ -288,7 +293,7 @@ export default function GameDetailPage() {
 
         {tab === 'reviews' && (
           <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <StatCard
                 label="Положительных, %"
                 value={monitor?.positiveReviewPercent?.toFixed(1) ?? '—'}
@@ -305,10 +310,10 @@ export default function GameDetailPage() {
                 accent="amber"
               />
             </div>
-            <div className="card p-5">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-200">Динамика отзывов</h3>
-                <div className="flex gap-1">
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-2">
+                <h3 className="card-header-hud__title">Динамика отзывов</h3>
+                <div className="card-header-hud__subtitle flex gap-1">
                   {PERIODS.slice(0, 3).map((period) => (
                     <button
                       key={period.label}
@@ -322,11 +327,17 @@ export default function GameDetailPage() {
               </div>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid stroke="#16404f" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="timestamp" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#16404f' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
+                  <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ background: '#0b2732', border: '1px solid #16404f', borderRadius: 12, fontSize: 12 }}
+                    contentStyle={{
+                      background: chartTheme.tooltip.background,
+                      border: chartTheme.tooltip.border,
+                      borderRadius: chartTheme.tooltip.borderRadius,
+                      boxShadow: chartTheme.tooltip.boxShadow,
+                      fontSize: chartTheme.tooltip.fontSize,
+                    }}
                   />
                   <Line dataKey="positiveReviewPercent" name="Положительных, %" stroke="#2dd4bf" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
@@ -336,7 +347,7 @@ export default function GameDetailPage() {
         )}
 
         {tab === 'news' && (
-          <div className="card p-5">
+          <div className="card card-hud p-5">
             {news.length === 0 ? (
               <EmptyState title="Новостей нет" description="Steam не публиковал новостей для этой игры" />
             ) : (
@@ -357,15 +368,17 @@ export default function GameDetailPage() {
         )}
 
         {tab === 'achievements' && (
-          <div className="card p-5">
+          <div className="card card-hud p-5">
             {monitor && monitor.achievements.length > 0 ? (
               <>
-                <h3 className="mb-3 text-sm font-semibold text-slate-200">
-                  Ачивки: клан vs глобально
-                  <span className="badge ml-2 border border-surface-700 bg-surface-800/60 text-slate-300">
+                <div className="card-header-hud mb-3">
+                  <h3 className="card-header-hud__title">
+                    Ачивки: клан vs глобально
+                  </h3>
+                  <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">
                     владельцев в клане: {monitor.clanOwners}
                   </span>
-                </h3>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

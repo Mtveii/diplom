@@ -148,7 +148,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
   }
 
   return (
-    <section className="card flex flex-col gap-6 p-5">
+    <section className="card card-hud flex flex-col gap-6 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-bold text-white">Alert Rule Builder</h3>
         <button
@@ -159,7 +159,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
         </button>
       </div>
 
-      <div className="rounded-xl border border-surface-700/60 bg-surface-950/40 p-4">
+      <div className="card-hud card-hud--sm rounded-xl border border-primary-500/30 bg-surface-950/40 p-4">
         <div className="flex flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
             <span className="font-semibold uppercase tracking-wider text-slate-500">When</span>
@@ -218,7 +218,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
                         : 'border-surface-700 text-slate-500 hover:text-slate-300'
                     }`}
                   >
-                    <span className={`h-1.5 w-1.5 rounded-full ${enabled ? 'bg-primary-400' : 'bg-slate-600'}`} />
+                    <span className={`channel-dot ${enabled ? 'channel-dot--active' : ''}`} />
                     {CHANNEL_LABELS[channel]}
                   </button>
                 )
@@ -255,7 +255,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
           rules.map((rule) => (
             <div
               key={rule.id}
-              className="flex items-center gap-3 rounded-xl border border-surface-700 bg-surface-950/60 px-3 py-2 text-sm transition-colors hover:border-surface-700"
+              className="card-hud card-hud--sm card-hud--reveal flex items-center gap-3 rounded-xl border border-surface-700 bg-surface-950/60 px-3 py-2 text-sm transition-colors hover:border-surface-700"
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${rule.isActive ? 'animate-pulse-dot bg-success-400' : 'bg-slate-600'}`}

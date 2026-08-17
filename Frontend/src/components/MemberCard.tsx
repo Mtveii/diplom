@@ -25,7 +25,7 @@ export default function MemberCard({ member, onOpen }: MemberCardProps) {
   return (
     <button
       onClick={() => onOpen(member)}
-      className="card card-hover group flex w-full items-center gap-4 p-4 text-left"
+      className="card card-hover card-hud card-hud--sm group flex w-full items-center gap-4 p-4 text-left"
     >
       <div className="relative">
         {member.avatarUrl ? (

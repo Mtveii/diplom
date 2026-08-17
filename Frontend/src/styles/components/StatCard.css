@@ -1,0 +1,41 @@
+/* StatCard Component Styles */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(22, 64, 79, 0.5);
+  background: rgba(11, 39, 50, 0.5);
+  backdrop-filter: blur(12px);
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: rgba(20, 184, 166, 0.5);
+  background: rgba(11, 39, 50, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.25);
+}
+
+.stat-card-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+.stat-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.stat-card-value {
+  margin-top: 0.5rem;
+  font-size: 1.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,9 @@
+/* MemberCard Component Styles */
+.member-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 1rem;
+  border: 1px solid rgba(22, 64, 79, 0.5);
+  background: rgba(11, 39, 50, 0.5);
+  padding: 1rem;
+}

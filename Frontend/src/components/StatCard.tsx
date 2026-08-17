@@ -21,7 +21,7 @@ export default function StatCard({ label, value, accent = 'slate', icon, hint, d
   const palette = accents[accent]
   const hasDelta = typeof delta === 'number' && Number.isFinite(delta)
   return (
-    <div className="card card-hover group relative overflow-hidden p-5">
+    <div className="card card-hover card-hud group relative overflow-hidden p-5">
       <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${palette.bar}`} />
       <div className="flex items-start justify-between gap-2">
         <div>
@@ -31,8 +31,8 @@ export default function StatCard({ label, value, accent = 'slate', icon, hint, d
             <div
               className={`mt-1.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${
                 delta! > 0
-                  ? 'border-success-500/30 bg-success-500/10 text-success-400'
-                  : 'border-danger-500/30 bg-danger-500/10 text-danger-400'
+                  ? 'border-success-500/40 bg-transparent text-success-400 shadow-[0_0_12px_-2px_rgba(52,211,153,0.5)]'
+                  : 'border-danger-500/40 bg-transparent text-danger-400 shadow-[0_0_12px_-2px_rgba(239,68,68,0.45)]'
               }`}
               title="к прошлому периоду"
             >

@@ -1,0 +1,10 @@
+/* Toaster Component Styles */
+.toaster {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

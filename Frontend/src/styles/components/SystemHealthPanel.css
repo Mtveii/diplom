@@ -1,0 +1,5 @@
+/* SystemHealthPanel Component Styles */
+.system-health-panel {
+  display: flex;
+  flex-direction: column;
+}

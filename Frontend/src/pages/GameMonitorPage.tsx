@@ -12,13 +12,16 @@ import {
   YAxis,
 } from 'recharts'
 import AlertRulesPanel from '@/components/AlertRulesPanel'
+import { chartTheme } from '@/styles/chartTheme'
 import CatalogDetailModal from '@/components/CatalogDetailModal'
 import ErrorState from '@/components/ErrorState'
 import GameCatalogCard from '@/components/GameCatalogCard'
+import GameMonitorTrendChart from '@/components/GameMonitorTrendChart'
 import Spinner from '@/components/Spinner'
 import StatCard from '@/components/StatCard'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { steamApi } from '@/services/api/notifications.api'
+import { useAlerts } from '@/hooks/useAlerts'
 import { useCatalog } from '@/hooks/useCatalog'
 import { formatRelativeDate } from '@/utils/format'
 import type { UnifiedGameDto } from '@/types/catalog'
@@ -83,6 +86,7 @@ export default function GameMonitorPage() {
   const [view, setView] = useState<ViewMode>('grid')
   const [sort, setSort] = useState<SortKey>('relevance')
   const [tab, setTab] = useState<PageTab>('catalog')
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const [selectedGame, setSelectedGame] = useState<UnifiedGameDto | null>(null)
 
@@ -90,6 +94,26 @@ export default function GameMonitorPage() {
   const [game, setGame] = useState<GameMonitorDto | null>(null)
   const [news, setNews] = useState<SteamNewsItemDto[]>([])
   const [monitorLoading, setMonitorLoading] = useState(false)
+  const alerts = useAlerts()
+
+  const alertsByDay = useMemo(() => {
+    const byDay = new Map<string, number>()
+    const offset = new Date().getTimezoneOffset() * 60_000
+    const now = Date.now()
+    for (let i = 13; i >= 0; i -= 1) {
+      byDay.set(new Date(now - i * 24 * 3600_000).toISOString().slice(0, 10), 0)
+    }
+    for (const alert of alerts.history) {
+      const key = new Date(alert.triggeredAt).toISOString().slice(0, 10)
+      if (byDay.has(key)) {
+        byDay.set(key, (byDay.get(key) ?? 0) + 1)
+      }
+    }
+    return Array.from(byDay, ([day, count]) => ({
+      day: new Date(new Date(day).getTime() + offset).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      count,
+    }))
+  }, [alerts.history])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(2)
@@ -346,12 +370,12 @@ export default function GameMonitorPage() {
         </button>
       </div>
 
-      <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-800/40 p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-surface-700 bg-surface-800/40 p-1">
         {(['catalog', 'monitoring', 'alerts'] as PageTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors ${
               tab === t ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-100'
             }`}
           >
@@ -362,8 +386,34 @@ export default function GameMonitorPage() {
 
       {tab === 'catalog' && (
       <div className="flex min-h-0 flex-1 flex-col gap-5 lg:flex-row">
-        <aside className="card flex h-fit min-h-0 flex-col gap-5 p-4 lg:h-full lg:w-[280px] lg:shrink-0 lg:overflow-y-auto">
-          <div>
+        <button
+          onClick={() => setFiltersOpen((prev) => !prev)}
+          className="btn-ghost lg:hidden"
+          aria-expanded={filtersOpen}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
+          </svg>
+          Фильтры
+          {filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-primary-400" />}
+          <svg
+            className={`h-4 w-4 text-slate-500 transition-transform ${filtersOpen ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        <aside
+          className={`card flex h-fit min-h-0 flex-col gap-5 p-4 lg:h-full lg:w-[280px] lg:shrink-0 lg:overflow-y-auto ${
+            filtersOpen ? '' : 'hidden lg:flex'
+          }`}
+        >          <div>
             <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Поиск</h2>
             <div className="relative">
               <svg
@@ -667,10 +717,10 @@ export default function GameMonitorPage() {
               </div>
             </div>
 
-            <div className="card p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-slate-200">Тренд {game.name}: ревью и цена</h3>
-                <div className="flex gap-1">
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-4">
+                <h3 className="card-header-hud__title">Тренд {game.name}: ревью и цена</h3>
+                <div className="card-header-hud__subtitle flex gap-1">
                   {([7, 30, 90, 365] as const).map((days) => (
                     <button
                       key={days}
@@ -688,13 +738,13 @@ export default function GameMonitorPage() {
               </div>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={formatTrend(cutTrend(game.trend))} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid stroke="#16404f" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="timestamp" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#16404f' }} tickLine={false} />
-                <YAxis yAxisId="percent" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
+                <YAxis yAxisId="percent" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis
                   yAxisId="price"
                   orientation="right"
-                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  tick={{ fill: chartTheme.axisTick, fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   width={46}
@@ -702,11 +752,11 @@ export default function GameMonitorPage() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: '#0b2732',
-                    border: '1px solid #16404f',
-                    borderRadius: 12,
-                    boxShadow: '0 12px 30px -10px rgba(4,20,26,0.9)',
-                    fontSize: 12,
+                    background: chartTheme.tooltip.background,
+                    border: chartTheme.tooltip.border,
+                    borderRadius: chartTheme.tooltip.borderRadius,
+                    boxShadow: chartTheme.tooltip.boxShadow,
+                    fontSize: chartTheme.tooltip.fontSize,
                   }}
                   formatter={(value, name) => (name === 'Цена, $' ? [`$${Number(value).toFixed(2)}`, name] : [value, name])}
                 />
@@ -719,8 +769,10 @@ export default function GameMonitorPage() {
           </div>
 
           {news.length > 0 && (
-            <div className="card p-5">
-              <h3 className="mb-3 text-sm font-semibold text-slate-200">Новости по игре</h3>
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-3">
+                <h3 className="card-header-hud__title">Новости по игре</h3>
+              </div>
               <div className="flex flex-col gap-2">
                 {news.map((item) => (
                   <div key={item.id} className="flex items-center justify-between gap-3 border-b border-surface-800 pb-2 text-sm last:border-0">
@@ -737,13 +789,15 @@ export default function GameMonitorPage() {
           )}
 
           {game.achievements.length > 0 && (
-            <div className="card p-5">
-              <h3 className="mb-3 text-sm font-semibold text-slate-200">
-                Ачивки: клан vs глобально
-                <span className="badge ml-2 border border-surface-700 bg-surface-800/60 text-slate-300">
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-3">
+                <h3 className="card-header-hud__title">
+                  Ачивки: клан vs глобально
+                </h3>
+                <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">
                   владельцев в клане: {game.clanOwners}
                 </span>
-              </h3>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -774,7 +828,8 @@ export default function GameMonitorPage() {
       )}
 
       {tab === 'alerts' && (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
+          <GameMonitorTrendChart alertsByDay={alertsByDay} />
           <AlertRulesPanel selectedAppId={monitorAppId ?? undefined} />
         </div>
       )}

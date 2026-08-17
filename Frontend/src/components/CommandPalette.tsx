@@ -29,6 +29,12 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
+    const openHandler = () => setOpen(true)
+    window.addEventListener('open-command-palette', openHandler)
+    return () => window.removeEventListener('open-command-palette', openHandler)
+  }, [])
+
+  useEffect(() => {
     if (open) {
       setQuery('')
       setActiveIndex(0)

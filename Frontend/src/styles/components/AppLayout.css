@@ -1,0 +1,7 @@
+/* AppLayout Component Styles */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #08202a;
+}

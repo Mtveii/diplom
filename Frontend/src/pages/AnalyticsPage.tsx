@@ -12,6 +12,7 @@ import {
 import ErrorState from '@/components/ErrorState'
 import Modal from '@/components/Modal'
 import Spinner from '@/components/Spinner'
+import { chartTheme } from '@/styles/chartTheme'
 import { analyticsApi } from '@/services/api/analytics.api'
 import { toast } from '@/store/toastStore'
 import type { ChurnRiskDto, CohortRowDto, PeriodComparisonDto, RetentionPointDto } from '@/types/analytics'
@@ -112,7 +113,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 sm:gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Аналитика клана</h1>
@@ -148,8 +149,6 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-      <div className="flex flex-col gap-6">
       {comparison && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="card card-hover relative overflow-hidden p-5">
@@ -187,12 +186,12 @@ export default function AnalyticsPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-slate-200">
+        <div className="card card-hud p-5">
+          <div className="card-header-hud mb-4">
+            <h3 className="card-header-hud__title">
               Retention (горизонт {retentionDays} дней)
             </h3>
-            <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
+            <div className="card-header-hud__subtitle flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
               {RETENTION_HORIZONS.map((days) => (
                 <button
                   key={days}
@@ -221,17 +220,17 @@ export default function AnalyticsPage() {
                     <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0.35} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="#16404f" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#16404f' }} tickLine={false} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} unit="%" axisLine={false} tickLine={false} />
+                <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
+                <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} unit="%" axisLine={false} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: '#16404f', opacity: 0.4 }}
                   contentStyle={{
-                    background: '#0b2732',
-                    border: '1px solid #16404f',
-                    borderRadius: 12,
-                    boxShadow: '0 12px 30px -10px rgba(4,20,26,0.9)',
-                    fontSize: 12,
+                    background: chartTheme.tooltip.background,
+                    border: chartTheme.tooltip.border,
+                    borderRadius: chartTheme.tooltip.borderRadius,
+                    boxShadow: chartTheme.tooltip.boxShadow,
+                    fontSize: chartTheme.tooltip.fontSize,
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -241,10 +240,10 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-slate-200">Риск оттока (churn)</h3>
-            <div className="flex items-center gap-3">
+        <div className="card card-hud p-5">
+          <div className="card-header-hud mb-4">
+            <h3 className="card-header-hud__title">Риск оттока (churn)</h3>
+            <div className="card-header-hud__subtitle flex items-center gap-3">
               <label className="flex items-center gap-1.5 text-xs text-slate-400">
                 <button
                   type="button"
@@ -285,34 +284,42 @@ export default function AnalyticsPage() {
                   : 'Риск оттока не обнаружен — участники активны'}
               </div>
             ) : (
-              filteredChurn.map((member) => (
-                <div key={member.steamId64} className="flex items-center gap-3 text-sm">
-                  <div className="flex-1">
-                    <div className="text-slate-100">{member.username}</div>
-                    <div className="text-xs text-slate-500">не в сети {member.daysWithoutLogin} дней</div>
-                  </div>
-                  <div className="w-32">
-                    <div className="h-2 overflow-hidden rounded-full bg-surface-800">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-warning-500 to-danger-500 transition-all duration-500"
-                        style={{ width: `${Math.min(100, member.riskScore * 100)}%` }}
-                      />
+              filteredChurn.map((member) => {
+                const isHigh = member.riskScore >= 0.5
+                return (
+                  <div
+                    key={member.steamId64}
+                    className={`flex items-center gap-3 rounded-xl p-2 text-sm transition-colors ${
+                      isHigh ? 'churn-row--high-risk' : ''
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="text-slate-100">{member.username}</div>
+                      <div className="text-xs text-slate-500">не в сети {member.daysWithoutLogin} дней</div>
                     </div>
+                    <div className="w-32">
+                      <div className="h-2 overflow-hidden rounded-full bg-surface-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-warning-500 to-danger-500 transition-all duration-500"
+                          style={{ width: `${Math.min(100, member.riskScore * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-10 text-right text-xs font-semibold tabular-nums text-slate-300">
+                      {Math.round(member.riskScore * 100)}%
+                    </span>
                   </div>
-                  <span className="w-10 text-right text-xs font-semibold tabular-nums text-slate-300">
-                    {Math.round(member.riskScore * 100)}%
-                  </span>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
       </div>
 
-      <div className="card p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-slate-200">Когортный анализ (по месяцу вступления)</h3>
-          <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
+      <div className="card card-hud p-5">
+        <div className="card-header-hud mb-4">
+          <h3 className="card-header-hud__title">Когортный анализ (по месяцу вступления)</h3>
+          <div className="card-header-hud__subtitle flex gap-1 rounded-xl border border-surface-700 bg-surface-900 p-1">
             <button
               onClick={() => setCohortMetric('retention')}
               className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${
@@ -369,9 +376,6 @@ export default function AnalyticsPage() {
             </table>
           </div>
         )}
-      </div>
-      </div>
-      </div>
 
       <Modal open={exportOpen} title="Экспорт отчёта" onClose={() => setExportOpen(false)}>
         <div className="flex flex-col gap-4">
@@ -447,6 +451,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </Modal>
+      </div>
     </div>
   )
 }

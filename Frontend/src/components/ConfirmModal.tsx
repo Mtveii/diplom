@@ -52,7 +52,7 @@ export default function ConfirmModal({
         }
       }}
     >
-      <div className="w-full max-w-md animate-scale-in rounded-2xl border border-surface-700/60 bg-surface-900/90 p-6 shadow-card backdrop-blur-md">
+      <div className="flex max-h-[85vh] w-full max-w-md animate-scale-in flex-col overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/90 p-6 shadow-card backdrop-blur-md">
         <div className="flex items-start gap-3">
           <div
             className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${

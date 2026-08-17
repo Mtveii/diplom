@@ -4,6 +4,7 @@ import type { AlertHistoryDto } from '@/types/alert'
 import type { OnlineStatusDto } from '@/types/monitoring'
 
 let connection: signalR.HubConnection | null = null
+let activeHandlers = 0
 
 function getConnection(): signalR.HubConnection {
   if (!connection) {
@@ -19,14 +20,24 @@ function getConnection(): signalR.HubConnection {
 }
 
 export async function startSignalR(): Promise<void> {
+  activeHandlers += 1
   const hub = getConnection()
   if (hub.state !== signalR.HubConnectionState.Disconnected) {
     return
   }
-  await hub.start()
+  try {
+    await hub.start()
+  } catch (error) {
+    activeHandlers = Math.max(0, activeHandlers - 1)
+    throw error
+  }
 }
 
 export async function stopSignalR(): Promise<void> {
+  activeHandlers = Math.max(0, activeHandlers - 1)
+  if (activeHandlers > 0) {
+    return
+  }
   if (connection && connection.state !== signalR.HubConnectionState.Disconnected) {
     await connection.stop()
   }

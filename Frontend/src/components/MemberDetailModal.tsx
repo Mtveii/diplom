@@ -1,4 +1,14 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { chartTheme } from '@/styles/chartTheme'
 import Modal from '@/components/Modal'
 import { EmptyState } from '@/components/PageState'
 import { membersApi } from '@/services/api/members.api'
@@ -116,6 +126,26 @@ export default function MemberDetailModal({ member, onClose, onChanged }: Member
       : 'Онлайн'
     : 'Офлайн'
 
+  const historyByDay = useMemo(() => {
+    const byDay = new Map<string, number>()
+    const offset = new Date().getTimezoneOffset() * 60_000
+    const now = Date.now()
+    for (let i = 13; i >= 0; i -= 1) {
+      const day = new Date(now - i * 24 * 3600_000)
+      byDay.set(day.toISOString().slice(0, 10), 0)
+    }
+    for (const entry of history) {
+      const key = new Date(entry.changedAt).toISOString().slice(0, 10)
+      if (byDay.has(key)) {
+        byDay.set(key, (byDay.get(key) ?? 0) + 1)
+      }
+    }
+    return Array.from(byDay, ([day, count]) => ({
+      day: new Date(new Date(day).getTime() + offset).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      count,
+    }))
+  }, [history])
+
   return (
     <Modal open title={member.username} onClose={onClose}>
       <div className="flex flex-col gap-5">
@@ -154,14 +184,14 @@ export default function MemberDetailModal({ member, onClose, onChanged }: Member
           ))}
         </div>
 
-        <div className="flex gap-1 border-b border-surface-700">
+        <div className="flex gap-1 overflow-x-auto border-b border-surface-700">
           {(['overview', 'games', 'activity', 'history'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium capitalize transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-t-lg border-b-2 px-3.5 py-2 text-sm font-medium capitalize transition-colors ${
                 tab === t
-                  ? 'border-primary-400 text-white'
+                  ? 'hud-text-glow border-primary-400 text-white'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -314,13 +344,51 @@ export default function MemberDetailModal({ member, onClose, onChanged }: Member
         )}
 
         {tab === 'history' && (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold text-slate-200">История профиля</h3>
-            {history.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-surface-700 px-4 py-6 text-center text-xs text-slate-500">
-                Изменений не обнаружено (трекается polling-джобой)
-              </div>
-            ) : (
+          <section className="flex flex-col gap-4">
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-slate-200">Изменения за 14 дней</h3>
+              {history.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-surface-700 px-4 py-6 text-center text-xs text-slate-500">
+                  Изменений не обнаружено (трекается polling-джобой)
+                </div>
+              ) : (
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={historyByDay} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                      <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fill: chartTheme.axisTick, fontSize: 10 }}
+                        axisLine={{ stroke: chartTheme.axisLine }}
+                        tickLine={false}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip
+                        cursor={{ fill: '#16404f', opacity: 0.4 }}
+                        contentStyle={{
+                          background: chartTheme.tooltip.background,
+                          border: chartTheme.tooltip.border,
+                          borderRadius: chartTheme.tooltip.borderRadius,
+                          boxShadow: chartTheme.tooltip.boxShadow,
+                          fontSize: chartTheme.tooltip.fontSize,
+                        }}
+                        labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
+                      />
+                      <Bar dataKey="count" name="Изменений" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-slate-200">История профиля</h3>
+              {history.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-surface-700 px-4 py-6 text-center text-xs text-slate-500">
+                  Изменений не обнаружено (трекается polling-джобой)
+                </div>
+              ) : (
               <div className="flex flex-col gap-1.5 text-xs text-slate-400">
                 {history.slice(0, 20).map((entry) => (
                   <div key={entry.id} className="flex flex-wrap items-baseline gap-2 rounded-lg bg-surface-950/60 px-3 py-2">
@@ -342,6 +410,7 @@ export default function MemberDetailModal({ member, onClose, onChanged }: Member
                 ))}
               </div>
             )}
+            </section>
           </section>
         )}
       </div>

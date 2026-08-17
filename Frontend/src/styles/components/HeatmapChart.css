@@ -1,0 +1,6 @@
+/* HeatmapChart Component Styles */
+.heatmap-chart {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+}

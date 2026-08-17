@@ -12,7 +12,7 @@ RUN dotnet restore "src/API/SteamAdminPanel.Api.csproj"
 
 COPY . .
 WORKDIR /src/src/API
-RUN dotnet publish "SteamAdminPanel.Api.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet restore "SteamAdminPanel.Api.csproj" && dotnet publish "SteamAdminPanel.Api.csproj" -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app

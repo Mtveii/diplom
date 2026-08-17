@@ -84,7 +84,7 @@ const navItems: NavItem[] = [
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0-1.51 1z" />
       </svg>
     ),
   },
@@ -120,12 +120,16 @@ function useConnectionStatus(): ConnectionStatus {
 export default function AppLayout({ children }: AppLayoutProps) {
   const hasRole = useAuthStore((state) => state.hasRole)
   const location = useLocation()
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === '1')
   const [appBadge, setAppBadge] = useState(0)
   const [alertBadge, setAlertBadge] = useState(0)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const connectionStatus = useConnectionStatus()
 
   const canModerate = hasRole(['Moderator', 'SuperAdmin'])
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     const loadBadges = async () => {
@@ -137,178 +141,81 @@ export default function AppLayout({ children }: AppLayoutProps) {
         setAppBadge(apps.filter((app) => app.status === 'Pending').length)
         setAlertBadge(alerts)
       } catch {
-        // бейджи некритичны — при ошибке просто не показываем
+        // бейджи некритичны
       }
     }
     void loadBadges()
   }, [canModerate, location.pathname])
 
-  const toggleCollapse = () => {
-    setCollapsed((prev) => {
-      const next = !prev
-      localStorage.setItem('sidebar-collapsed', next ? '1' : '0')
-      return next
-    })
-  }
-
   return (
-    <div className="flex h-screen overflow-hidden text-slate-100">
-      <aside
-        className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-surface-700/50 bg-surface-900/70 px-3 py-6 backdrop-blur-md transition-[width] duration-200 lg:flex ${
-          collapsed ? 'w-[76px]' : 'w-[280px]'
-        }`}
-      >
-        <div className={`mb-8 flex items-center gap-3 ${collapsed ? 'justify-center px-0' : 'px-2'}`}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 shadow-glow">
-            <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold tracking-tight text-white">Steam Clan Admin</div>
-              <div className="text-[11px] text-slate-400">Панель управления</div>
-            </div>
-          )}
-        </div>
-
-        <nav className="flex flex-col gap-1">
-          {navItems.map((item) => {
-            const badge = item.to === '/applications' ? appBadge : item.to === '/games' ? alertBadge : 0
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                title={collapsed ? item.label : undefined}
-                className={({ isActive }) =>
-                  `group relative flex items-center gap-3 rounded-xl py-3 text-sm transition-all duration-200 ${
-                    collapsed ? 'justify-center px-0' : 'px-4'
-                  } ${
-                    isActive
-                      ? 'bg-primary-500 font-semibold text-surface-950 shadow-glow'
-                      : 'text-slate-400 hover:bg-surface-800/70 hover:text-slate-100'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}>
-                      {item.icon}
-                    </span>
-                    {!collapsed && item.label}
-                    {badge > 0 && (
-                      <span
-                        className={`flex h-4 min-w-4 items-center justify-center rounded-full bg-gradient-to-r from-danger-500 to-danger-600 px-1 text-[10px] font-bold text-white ${
-                          collapsed ? 'absolute right-1 top-1' : 'ml-auto'
-                        }`}
-                      >
-                        {badge}
-                      </span>
-                    )}
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-600" />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            )
-          })}
-        </nav>
-
-        <button
-          onClick={toggleCollapse}
-          title={collapsed ? 'Развернуть сайдбар' : 'Свернуть сайдбар'}
-          className={`mt-6 flex items-center gap-2 rounded-xl border border-surface-700/60 py-2 text-xs text-slate-500 transition-colors hover:border-primary-500/40 hover:text-slate-300 ${
-            collapsed ? 'justify-center' : 'justify-center gap-1'
-          }`}
-        >
-          <svg
-            className={`h-4 w-4 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          {!collapsed && 'Свернуть'}
-        </button>
-
-        <div className="mt-auto">
-          {!collapsed && (
-            <div className="mb-3 rounded-xl border border-surface-700/60 bg-surface-800/20 p-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 animate-pulse-dot rounded-full bg-success-400" />
-                <span className="text-xs text-slate-300">Steam Connected</span>
-              </div>
-              <div className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                {connectionStatus === 'live'
-                  ? 'Мониторинг обновляется каждую минуту'
-                  : connectionStatus === 'reconnecting'
-                    ? 'Переподключение...'
-                    : 'Нет соединения'}
-              </div>
-            </div>
-          )}
-          <div className={collapsed ? 'flex justify-center' : ''}>
-            <UserMenu showDetails={!collapsed} />
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-surface-700/60 bg-surface-900/30 px-4 py-3 backdrop-blur-md lg:px-8">
+    <div className="flex h-screen w-screen overflow-hidden text-slate-100">
+      <div className="flex w-full min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-surface-700/60 bg-surface-900/40 px-4 py-2.5 backdrop-blur-md sm:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="hidden min-w-0 lg:block">
-              <Breadcrumbs />
-            </div>
-            <div className="flex items-center gap-2 lg:hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-400 to-primary-600">
-                <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-700 text-slate-300 transition-colors hover:bg-surface-800 lg:hidden"
+              aria-label="Меню навигации"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                {mobileNavOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
+              </svg>
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 shadow-glow">
+                <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </div>
-              <div className="text-sm font-bold">Steam Clan Admin</div>
+              <div className="hidden sm:block">
+                <div className="text-sm font-bold tracking-tight text-white">Steam Clan Admin</div>
+                <div className="text-[10px] text-slate-400">Dashboard</div>
+              </div>
+            </div>
+            <div className="hidden min-w-0 lg:block lg:ml-4">
+              <Breadcrumbs />
             </div>
           </div>
 
-          <div className="hidden items-center gap-1 overflow-x-auto lg:flex lg:flex-1">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  `whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary-500 text-surface-950'
-                      : 'text-slate-400 hover:bg-surface-800 hover:text-slate-100'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+          <div className="hidden items-center gap-1.5 overflow-x-auto lg:flex lg:flex-1 lg:justify-center">
+            {navItems.map((item) => {
+              const badge = item.to === '/applications' ? appBadge : item.to === '/games' ? alertBadge : 0
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={({ isActive }) =>
+                    `whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors relative ${
+                      isActive
+                        ? 'bg-primary-500 text-surface-950 font-semibold shadow-glow'
+                        : 'text-slate-300 hover:bg-surface-800 hover:text-white'
+                    }`
+                  }
+                >
+                  {item.label}
+                  {badge > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[9px] font-bold text-white">
+                      {badge}
+                    </span>
+                  )}
+                </NavLink>
+              )
+            })}
           </div>
 
-          <div className="flex flex-1 items-center justify-end gap-4 lg:flex-none">
+          <div className="flex items-center gap-4">
             <span
               className={`hidden items-center gap-1.5 text-xs sm:flex ${
                 connectionStatus === 'live' ? 'text-success-400' : 'text-warning-400'
               }`}
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  connectionStatus === 'live' ? 'animate-pulse-dot bg-success-400' : 'animate-pulse bg-warning-400'
+                className={`live-dot ${
+                  connectionStatus === 'live' ? '' : connectionStatus === 'reconnecting' ? 'live-dot--warn' : 'live-dot--off'
                 }`}
               />
               {connectionStatus === 'live' ? 'Live' : connectionStatus === 'reconnecting' ? 'Reconnecting...' : 'Offline'}
@@ -318,7 +225,47 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1400px] min-h-0 flex-1 animate-fade-up p-4 lg:p-8">{children}</main>
+        {mobileNavOpen && (
+          <div className="absolute inset-x-0 top-[65px] z-50 border-b border-surface-700 bg-surface-950/95 p-4 shadow-card backdrop-blur-md animate-scale-in lg:hidden">
+            <nav className="flex flex-col gap-1.5">
+              {navItems.map((item) => {
+                const badge = item.to === '/applications' ? appBadge : item.to === '/games' ? alertBadge : 0
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    className={({ isActive }) =>
+                      `flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-primary-500 text-surface-950 shadow-glow font-semibold'
+                          : 'text-slate-300 hover:bg-surface-800'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <span className={isActive ? 'text-surface-950' : 'text-slate-400'}>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </div>
+                        {badge > 0 && (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-600 px-1.5 text-xs font-bold text-white">
+                            {badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </nav>
+          </div>
+        )}
+
+        <main className="w-full min-h-0 flex-1 animate-fade-up p-3 sm:p-6 lg:p-8 pb-20 lg:pb-8 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   )

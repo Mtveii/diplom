@@ -10,6 +10,7 @@ import ClanMembersPage from '@/pages/ClanMembersPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
 import GameDetailPage from '@/pages/GameDetailPage'
+import ProfilePage from '@/pages/ProfilePage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -85,6 +86,16 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <SettingsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ProfilePage />
               </AppLayout>
             </ProtectedRoute>
           }

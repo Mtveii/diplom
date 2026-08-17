@@ -41,7 +41,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-12 z-50 w-96 animate-scale-in rounded-2xl border border-surface-700/60 bg-surface-900/70 shadow-card backdrop-blur-md lg:left-auto lg:right-0">
+        <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-1.5rem)] max-h-[80vh] animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/90 shadow-card backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-surface-700 px-4 py-3">
             <span className="text-sm font-semibold text-white">
               Алерты

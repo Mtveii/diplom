@@ -87,7 +87,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
   return (
     <button
       onClick={() => onOpen(game)}
-      className="card card-hover group relative flex w-full flex-col overflow-hidden p-0 text-left"
+      className={`card card-hover ${compact ? '' : 'card-hud card-hud--sm card-hud--inset'} group relative flex w-full flex-col overflow-hidden p-0 text-left`}
     >
       <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-surface-950">
         {game.image ? (
@@ -141,7 +141,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
             }}
             title={watched ? 'Убрать из избранного' : 'В избранное'}
             className={`flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
-              watched ? 'bg-rose-500/90 text-white' : 'bg-surface-950/70 text-slate-300 hover:text-rose-300'
+              watched ? 'hud-icon-active bg-rose-500/90 text-white' : 'bg-surface-950/70 text-slate-300 hover:text-rose-300'
             }`}
           >
             <svg className={`h-3.5 w-3.5 ${watched ? 'fill-current' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -161,7 +161,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
 
         {!compact && genre && <p className="truncate text-[11px] text-slate-500">{genre}</p>}
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+        <div className={`mt-auto flex items-end justify-between gap-2 pt-1 ${matched ? 'pr-10' : ''}`}>
           <div className="flex min-w-0 items-center gap-1.5">
             {!compact && rating > 0 && <Stars rating={rating} />}
             <span className="text-[11px] font-medium text-slate-400">{rating > 0 ? rating.toFixed(1) : '—'}</span>
@@ -204,8 +204,8 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
             }
           }}
           title={monitored ? 'Отключить мониторинг' : 'Включить мониторинг'}
-          className={`absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
-            monitored ? 'bg-success-500/90 text-surface-950' : 'bg-surface-950/70 text-slate-300 hover:text-success-300'
+          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
+            monitored ? 'hud-icon-active bg-success-500/90 text-surface-950' : 'bg-surface-950/70 text-slate-300 hover:text-success-300'
           }`}
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

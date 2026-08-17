@@ -1,0 +1,5 @@
+/* Chart Component Styles */
+.chart-container {
+  display: flex;
+  flex-direction: column;
+}

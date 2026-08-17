@@ -3,9 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using SteamAdminPanel.Application.Options;
+using SteamAdminPanel.Application.Interfaces;
 using SteamAdminPanel.Application.Ports;
 using SteamAdminPanel.Infrastructure.Authentication;
 using SteamAdminPanel.Infrastructure.Caching;
+using SteamAdminPanel.Infrastructure.Health;
 using SteamAdminPanel.Infrastructure.Notifications;
 using SteamAdminPanel.Infrastructure.Options;
 using SteamAdminPanel.Infrastructure.Persistence;
@@ -109,6 +111,9 @@ public static class DependencyInjection
         services.AddScoped<QuestPdfReportExporter>();
         services.AddScoped<ClosedXmlReportExporter>();
         services.AddScoped<IReportExporter, ReportExporter>();
+
+        // --- Health ---
+        services.AddScoped<IHealthService, HealthService>();
 
         return services;
     }

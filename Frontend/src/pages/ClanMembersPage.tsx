@@ -2,10 +2,13 @@
 import ErrorState from '@/components/ErrorState'
 import MemberCard from '@/components/MemberCard'
 import MemberDetailModal from '@/components/MemberDetailModal'
-import Modal from '@/components/Modal'
+import MemberAddModal from '@/components/MemberAddModal'
+import MemberStatsHeader from '@/components/MemberStatsHeader'
 import ConfirmModal from '@/components/ConfirmModal'
 import { EmptyState, PageSkeleton } from '@/components/PageState'
 import { useClanMembers } from '@/hooks/useClanMembers'
+import { useClanStats } from '@/hooks/useClanStats'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { membersApi } from '@/services/api/members.api'
 import { toast } from '@/store/toastStore'
 import { formatHours, formatRelativeDate } from '@/utils/format'
@@ -55,7 +58,10 @@ function isWithinLast(lastSeenAt: string | null, hours: number | null, now = Dat
 export default function ClanMembersPage() {
   const { members, loading, error, search, setSearch, status, setStatus, rank, setRank, reload } =
     useClanMembers()
-  const [view, setView] = useState<ViewMode>('table')
+  const { counts, statuses } = useClanStats()
+  const [view, setView] = useState<ViewMode>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches ? 'table' : 'grid',
+  )
   const [activity, setActivity] = useState<ActivityFilter>('any')
   const [lastOnline, setLastOnline] = useState<LastOnlineFilter>('any')
   const [selected, setSelected] = useState<ClanMemberDto | null>(null)
@@ -71,6 +77,14 @@ export default function ClanMembersPage() {
   const [groupId, setGroupId] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+
+  useEffect(() => {
+    if (!isDesktop) {
+      setView((current) => (current === 'table' ? 'grid' : current))
+    }
+  }, [isDesktop])
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -260,7 +274,7 @@ export default function ClanMembersPage() {
     <div ref={menuRef}>
       <button
         onClick={() => setMenuFor(menuFor === member.id ? null : member.id)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
         aria-label="Действия"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -412,7 +426,9 @@ export default function ClanMembersPage() {
         </div>
       </div>
 
-      <div className="card flex flex-wrap items-center gap-2.5 p-3">
+      <MemberStatsHeader counts={counts} statuses={statuses} />
+
+      <div className="card card-hud card-hud--sm flex flex-wrap items-center gap-2.5 p-3">
         <div className="relative min-w-56 flex-1">
           <svg
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
@@ -481,7 +497,7 @@ export default function ClanMembersPage() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div>
         {filtered.length === 0 ? (
           <div className="card flex h-full flex-col items-center justify-center border-dashed">
             <EmptyState
@@ -500,7 +516,7 @@ export default function ClanMembersPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {selectedIds.size > 0 && (
-              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary-500/40 bg-surface-900/90 px-4 py-2.5 shadow-glow backdrop-blur-md">
+              <div className={`bulk-bar ${selectedIds.size > 0 ? 'bulk-bar--active' : ''} sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary-500/40 bg-surface-900/90 px-4 py-2.5 shadow-glow backdrop-blur-md`}>
                 <span className="text-sm text-slate-200">
                   Выбрано: <span className="font-semibold text-white">{selectedIds.size}</span>
                 </span>
@@ -536,7 +552,7 @@ export default function ClanMembersPage() {
               </div>
             )}
 
-            <div className="card overflow-x-auto">
+            <div className="card card-hud overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-surface-700/80 text-left text-xs text-slate-400">
@@ -552,10 +568,10 @@ export default function ClanMembersPage() {
                     <th className="px-3 py-3 font-medium">Player</th>
                     <th className="px-3 py-3 font-medium">Rank</th>
                     <th className="px-3 py-3 font-medium">Status</th>
-                    <th className="px-3 py-3 font-medium">Playtime</th>
-                    <th className="px-3 py-3 font-medium">Last online</th>
-                    <th className="px-3 py-3 font-medium">Joined</th>
-                    <th className="px-3 py-3 font-medium">Activity</th>
+                    <th className="hidden px-3 py-3 font-medium md:table-cell">Playtime</th>
+                    <th className="hidden px-3 py-3 font-medium md:table-cell">Last online</th>
+                    <th className="hidden px-3 py-3 font-medium md:table-cell">Joined</th>
+                    <th className="hidden px-3 py-3 font-medium md:table-cell">Activity</th>
                     <th className="w-14 px-4 py-3" />
                   </tr>
                 </thead>
@@ -594,14 +610,14 @@ export default function ClanMembersPage() {
                       <td className="px-3 py-2.5">
                         <span className={`badge ${STATUS_BADGE[member.status]}`}>{member.status}</span>
                       </td>
-                      <td className="px-3 py-2.5 tabular-nums text-slate-300">{formatHours(member.minutesPlayedTotal)}</td>
-                      <td className="px-3 py-2.5 text-slate-400">
+                      <td className="hidden px-3 py-2.5 tabular-nums text-slate-300 md:table-cell">{formatHours(member.minutesPlayedTotal)}</td>
+                      <td className="hidden px-3 py-2.5 text-slate-400 md:table-cell">
                         {member.lastSeenAt ? formatRelativeDate(member.lastSeenAt) : 'никогда'}
                       </td>
-                      <td className="px-3 py-2.5 text-slate-400">
+                      <td className="hidden px-3 py-2.5 text-slate-400 md:table-cell">
                         {new Date(member.joinedAt).toLocaleDateString('ru-RU')}
                       </td>
-                      <td className="px-3 py-2.5">{renderActivity(member)}</td>
+                      <td className="hidden px-3 py-2.5 md:table-cell">{renderActivity(member)}</td>
                       <td className="relative px-4 py-2.5">{renderActionsMenu(member)}</td>
                     </tr>
                   ))}
@@ -616,50 +632,20 @@ export default function ClanMembersPage() {
         <MemberDetailModal member={selected} onClose={() => setSelected(null)} onChanged={reload} />
       )}
 
-      <Modal open={showAdd} title="Добавить участника" onClose={() => setShowAdd(false)}>
-        <div className="flex flex-col gap-3">
-          <label className="text-sm text-slate-300">SteamID64</label>
-          <input
-            value={newSteamId}
-            onChange={(event) => setNewSteamId(event.target.value)}
-            placeholder="e.g. 76561198000000000"
-            className="input"
-          />
-          <label className="text-sm text-slate-300">Ранг</label>
-          <select value={newRank} onChange={(event) => setNewRank(event.target.value as InternalRank)} className="input bg-surface-950">
-            {rankOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-
-          <div className="my-2 h-px bg-surface-800" />
-
-          <label className="text-sm text-slate-300">Импорт всей Steam-группы (GID)</label>
-          <input
-            value={groupId}
-            onChange={(event) => setGroupId(event.target.value)}
-            placeholder="e.g. 103582791433224455"
-            className="input"
-          />
-
-          {formError && (
-            <div className="rounded-xl border border-rose-800/60 bg-rose-950/40 px-3 py-2 text-xs text-rose-300">
-              {formError}
-            </div>
-          )}
-
-          <div className="mt-2 flex gap-3">
-            <button onClick={() => void handleAddMember()} className="btn-primary flex-1">
-              Добавить
-            </button>
-            <button onClick={() => void handleImport()} className="btn-ghost flex-1">
-              Импортировать группу
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <MemberAddModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onAdd={() => void handleAddMember()}
+        onImport={() => void handleImport()}
+        newSteamId={newSteamId}
+        setNewSteamId={setNewSteamId}
+        newRank={newRank}
+        setNewRank={setNewRank}
+        groupId={groupId}
+        setGroupId={setGroupId}
+        formError={formError}
+        busy={busy}
+      />
 
       <ConfirmModal
         open={confirm !== null}

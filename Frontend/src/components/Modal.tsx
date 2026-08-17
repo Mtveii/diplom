@@ -37,12 +37,12 @@ export default function Modal({ open, title, onClose, children, wide }: ModalPro
       }}
     >
       <div
-        className={`max-h-[85vh] w-full animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/70 p-6 shadow-card backdrop-blur-md ${
+        className={`card-hud max-h-[85vh] w-full animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/70 p-6 shadow-card backdrop-blur-md ${
           wide ? 'max-w-5xl' : 'max-w-2xl'
         }`}
       >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <div className="card-header-hud card-header-hud--large flex items-center justify-between">
+          <h2 className="card-header-hud__title">{title}</h2>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"

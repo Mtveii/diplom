@@ -1,0 +1,6 @@
+/* ConfirmModal Component Styles */
+.confirm-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

@@ -1,0 +1,6 @@
+/* MemberStatsHeader Component Styles */
+.member-stats-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}

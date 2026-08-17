@@ -47,7 +47,7 @@ export default function Toaster() {
   const { toasts, remove } = useToastStore()
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-80 flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-20 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 lg:bottom-4">
       {toasts.map((item) => {
         const style = STYLES[item.type]
         return (

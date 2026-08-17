@@ -1,0 +1,38 @@
+/* GameCatalogCard Component Styles */
+.game-catalog-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(22, 64, 79, 0.5);
+  background: rgba(11, 39, 50, 0.5);
+  backdrop-filter: blur(12px);
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.game-catalog-card:hover {
+  border-color: rgba(20, 184, 166, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.25);
+}
+
+.game-catalog-image-wrap {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
+  background-color: #08202a;
+}
+
+.game-catalog-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.game-catalog-card:hover .game-catalog-image {
+  transform: scale(1.05);
+}

@@ -78,7 +78,7 @@ export default function UserMenu({ showDetails = true, panelPosition = 'left' }:
             <button
               onClick={() => {
                 setOpen(false)
-                navigate('/settings')
+                navigate('/profile')
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800 hover:text-white"
             >
@@ -86,7 +86,7 @@ export default function UserMenu({ showDetails = true, panelPosition = 'left' }:
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              Profile
+              Профиль
             </button>
             <button
               onClick={() => {

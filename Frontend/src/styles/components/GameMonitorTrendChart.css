@@ -1,0 +1,5 @@
+/* GameMonitorTrendChart Component Styles */
+.game-monitor-trend-chart {
+  display: flex;
+  flex-direction: column;
+}

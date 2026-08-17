@@ -1,0 +1,6 @@
+/* CatalogDetailModal Component Styles */
+.catalog-detail-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
