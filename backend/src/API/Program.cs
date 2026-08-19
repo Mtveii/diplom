@@ -132,6 +132,7 @@ try
 
     // --- Real-time ---
     builder.Services.AddSignalR();
+    builder.Services.AddSingleton<SteamAdminPanel.Infrastructure.GeoIP.GeoLocationService>();
 
     // --- HttpContext / актор ---
     builder.Services.AddHttpContextAccessor();
@@ -201,6 +202,7 @@ try
 
     app.MapControllers();
     app.MapHub<DashboardHub>("/hubs/dashboard");
+    app.MapHub<SteamAdminPanel.Api.Hubs.GlobeHub>("/hubs/globe");
 
     if (hangfireEnabled)
     {

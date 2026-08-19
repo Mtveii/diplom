@@ -7,10 +7,10 @@ import AnalyticsPage from '@/pages/AnalyticsPage'
 import ApplicationsPage from '@/pages/ApplicationsPage'
 import AuthPage from '@/pages/AuthPage'
 import ClanMembersPage from '@/pages/ClanMembersPage'
+import CommandCenterPage from '@/pages/CommandCenterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
 import GameDetailPage from '@/pages/GameDetailPage'
-import ProfilePage from '@/pages/ProfilePage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -91,11 +91,11 @@ export default function App() {
           }
         />
         <Route
-          path="/profile"
+          path="/command-center"
           element={
             <ProtectedRoute>
               <AppLayout>
-                <ProfilePage />
+                <CommandCenterPage />
               </AppLayout>
             </ProtectedRoute>
           }
