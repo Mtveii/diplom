@@ -264,8 +264,8 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-slate-100">{rule.name}</div>
                 <div className="text-xs text-slate-500">
-                  {RULE_LABELS[rule.type]} · {rule.targetId ? `App ${rule.targetId}` : 'глобально'} ·{' '}
-                  {CONDITION_LABELS[rule.condition]} {rule.thresholdValue}
+                  {RULE_LABELS[rule.type] ?? `Тип ${rule.type}`} · {rule.targetId ? `App ${rule.targetId}` : 'глобально'} ·{' '}
+                  {CONDITION_LABELS[rule.condition] ?? rule.condition} {rule.thresholdValue}
                 </div>
               </div>
               <button

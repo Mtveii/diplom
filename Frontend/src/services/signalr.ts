@@ -1,4 +1,5 @@
 import * as signalR from '@microsoft/signalr'
+import { API_BASE_URL } from '@/services/api/httpClient'
 import { useAuthStore } from '@/store/authStore'
 import type { AlertHistoryDto } from '@/types/alert'
 import type { OnlineStatusDto } from '@/types/monitoring'
@@ -9,7 +10,7 @@ let activeHandlers = 0
 function getConnection(): signalR.HubConnection {
   if (!connection) {
     connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/dashboard', {
+      .withUrl(`${API_BASE_URL}/hubs/globe`, {
         accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
       })
       .withAutomaticReconnect()
@@ -49,6 +50,10 @@ export function onOnlineStatusChanged(handler: (status: OnlineStatusDto) => void
 
 export function onAlertTriggered(handler: (alert: AlertHistoryDto) => void): void {
   getConnection().on('AlertTriggered', handler)
+}
+
+export function onUsersUpdated(handler: (points: unknown) => void): void {
+  getConnection().on('UsersUpdated', handler)
 }
 
 export function onReconnecting(handler: () => void): void {

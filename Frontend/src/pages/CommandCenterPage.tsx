@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { UsersGlobe } from '../components/UsersGlobe'
 
 export default function CommandCenterPage() {
   const [timeStr, setTimeStr] = useState('15:21:03')
@@ -206,39 +207,12 @@ export default function CommandCenterPage() {
         <div className="col-span-6 relative rounded-xl border border-blue-900/60 bg-[#040812] overflow-hidden flex flex-col items-center justify-center p-4">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
           
-          {/* Globe Graphic Simulation */}
-          <div className="relative h-[340px] w-[340px] rounded-full border border-blue-700/40 bg-gradient-to-br from-blue-900/30 via-slate-900 to-black shadow-[0_0_60px_rgba(30,58,138,0.5)] flex items-center justify-center animate-spin [animation-duration:120s]">
-            {/* Latitude / Longitude arcs */}
-            <div className="absolute inset-2 rounded-full border border-dashed border-blue-500/20" />
-            <div className="absolute inset-12 rounded-full border border-blue-400/20" />
-            <div className="absolute h-full w-[1px] bg-blue-500/30" />
-            <div className="absolute w-full h-[1px] bg-blue-500/30" />
-            
-            {/* Center landmass abstraction */}
-            <div className="absolute h-48 w-48 rounded-full bg-blue-950/60 blur-md" />
-            <div className="absolute h-32 w-32 rounded-full bg-slate-800/50 blur-sm top-12 left-16" />
+          {/* 3D Interactive Globe via react-globe.gl & SignalR */}
+          <div className="absolute inset-0 z-0">
+            <UsersGlobe />
           </div>
 
-          {/* Floating Tooltips / Markers around the globe */}
-          <div className="absolute top-16 left-12 rounded border border-blue-500/50 bg-blue-950/80 px-2.5 py-1 text-[10px] text-blue-200 shadow-glow backdrop-blur">
-            📍 Узел Москва (Moscow Node)
-          </div>
-          <div className="absolute top-24 right-16 rounded border border-success-500/50 bg-emerald-950/80 px-2.5 py-1 text-[10px] text-emerald-200 shadow-glow backdrop-blur">
-            🛰️ APAC Хаб (APAC Hub)
-          </div>
-          <div className="absolute bottom-20 left-20 rounded border border-amber-500/50 bg-amber-950/80 px-2.5 py-1 text-[10px] text-amber-200 shadow-glow backdrop-blur">
-            ⚡ Шлюз Дубай (Dubai Gateway)
-          </div>
-          <div className="absolute bottom-28 right-24 rounded border border-primary-400/50 bg-blue-950/80 px-2.5 py-1 text-[10px] text-white shadow-glow backdrop-blur">
-            🌐 Регион Токио (Tokyo Region)
-          </div>
 
-          <div className="absolute bottom-3 left-4 text-[10px] font-mono text-slate-500">
-            LAT: 55.7558 N · LON: 37.6173 E · STATUS: SYNCHRONIZED
-          </div>
-          <div className="absolute bottom-3 right-4 text-[10px] font-mono text-primary-400">
-            STEAM CLAN COMMAND DISPLAY
-          </div>
         </div>
 
         {/* Right Column (Charts & Flight Table) */}
@@ -320,7 +294,7 @@ export default function CommandCenterPage() {
                 { time: '09.04', code: 'SRV-04', route: 'Тренировка / Сервер Delta', qty: 1 },
                 { time: '09.04', code: 'SRV-05', route: 'Событие / Сервер Omega', qty: 1 },
                 { time: '09.04', code: 'SRV-01', route: 'Рейд / Сервер Alpha', qty: 2 },
-                { time: '09.05', code: 'SRV-02', route: 'Матч / Сервер Beta', qty: 3 },
+                // { time: '09.05', code: 'SRV-02', route: 'Матч / Сервер Beta', qty: 3 },
                 { time: '09.05', code: 'SRV-03', route: 'Турнир / Сервер Gamma', qty: 1 },
                 { time: '09.05', code: 'SRV-04', route: 'Тренировка / Сервер Delta', qty: 1 },
                 { time: '09.05', code: 'SRV-05', route: 'Событие / Сервер Omega', qty: 1 },
@@ -340,10 +314,7 @@ export default function CommandCenterPage() {
       </div>
 
       {/* Footer Branding */}
-      <footer className="mt-2 flex items-center justify-between text-[10px] text-slate-500 border-t border-blue-950 pt-1 px-1">
-        <div>STEAM CLAN ADMIN CENTER · COMMAND VIEW V2.0</div>
-        <div className="tracking-widest font-bold text-slate-400">COMMAND CONTROL</div>
-      </footer>
+
     </div>
   )
 }

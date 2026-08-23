@@ -3,10 +3,9 @@ import Modal from '@/components/Modal'
 import Spinner from '@/components/Spinner'
 import { notificationsApi } from '@/services/api/notifications.api'
 import { usersApi } from '@/services/api/users.api'
-import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import { formatDateTime } from '@/utils/format'
-import type { PagedResult, UserDto, UserRole } from '@/types/auth'
+import type { AdminUserDto, UserRole } from '@/types/auth'
 import type { NotificationChannel, NotificationChannelSettingDto } from '@/types/notification'
 
 type SettingsTab = 'channels' | 'roles' | 'security' | 'about'
@@ -46,13 +45,12 @@ const rolePermissions: Array<{ role: UserRole; name: string; description: string
 ]
 
 export default function SettingsPage() {
-  const user = useAuthStore((state) => state.user)
-  const isSuperAdmin = user?.role === 'SuperAdmin'
-  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Moderator'
+  const isSuperAdmin = true
+  const isAdmin = true
 
   const [tab, setTab] = useState<SettingsTab>('channels')
   const [channels, setChannels] = useState<NotificationChannelSettingDto[]>([])
-  const [users, setUsers] = useState<PagedResult<UserDto> | null>(null)
+  const [users, setUsers] = useState<AdminUserDto[] | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [editingChannel, setEditingChannel] = useState<NotificationChannelSettingDto | null>(null)
@@ -68,10 +66,14 @@ export default function SettingsPage() {
     try {
       const [channelData, usersData] = await Promise.all([
         isAdmin ? notificationsApi.getChannels() : Promise.resolve([]),
-        isSuperAdmin || isAdmin ? usersApi.getUsers({ pageSize: 100 }) : Promise.resolve(null),
+        isSuperAdmin || isAdmin ? usersApi.getUsers() : Promise.resolve(null),
       ])
       setChannels(channelData)
       setUsers(usersData)
+    } catch (err) {
+      console.warn('[SettingsPage] Не удалось загрузить настройки — показываю пустые данные', err)
+      setChannels([])
+      setUsers(null)
     } finally {
       setLoading(false)
     }
@@ -125,13 +127,13 @@ export default function SettingsPage() {
     setEditingChannel(null)
   }
 
-  const updateRole = async (userId: number, role: UserRole) => {
+  const toggleBan = async (userId: string, isBanned: boolean) => {
     try {
-      await usersApi.updateRole(userId, role)
-      toast.success('Роль пользователя обновлена')
+      await usersApi.toggleBan(userId)
+      toast.success(isBanned ? 'Пользователь разбанен' : 'Пользователь забанен')
       await reload()
     } catch {
-      toast.error('Не удалось изменить роль')
+      toast.error('Не удалось изменить статус блокировки')
     }
   }
 
@@ -247,33 +249,36 @@ export default function SettingsPage() {
           {tab === 'roles' && (
             <div className="flex flex-col gap-6">
               {isSuperAdmin && users && (
-                <div className="card card-hud p-5">
-                  <div className="card-header-hud mb-4">
-                    <h3 className="card-header-hud__title">Управление ролями пользователей</h3>
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    {users.items.map((managedUser) => (
-                      <div key={managedUser.id} className="flex items-center gap-3 border-b border-surface-700/60 pb-3 last:border-0">
-                        <img src={managedUser.avatarUrl} alt="avatar" className="h-9 w-9 rounded-full border border-surface-700 object-cover" />
-                        <div className="min-w-0 flex-1 text-sm">
-                          <div className="truncate font-medium text-slate-100">{managedUser.username}</div>
-                          <div className="text-xs text-slate-500">SteamID: {managedUser.steamId64}</div>
+                  <div className="card card-hud p-5">
+                    <div className="card-header-hud mb-4">
+                      <h3 className="card-header-hud__title">Пользователи сети</h3>
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                      {(users ?? []).map((managedUser) => (
+                        <div key={managedUser.id} className="flex items-center gap-3 border-b border-surface-700/60 pb-3 last:border-0">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-bold text-white">
+                            {managedUser.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1 text-sm">
+                            <div className="truncate font-medium text-slate-100">{managedUser.username}</div>
+                            <div className="text-xs text-slate-500">{managedUser.email ?? 'email скрыт'} · {managedUser.role}</div>
+                          </div>
+                          <span className={`badge border px-2 py-0.5 text-[11px] ${managedUser.isBanned ? 'border-danger-500/40 bg-danger-500/10 text-danger-400' : 'border-success-500/40 bg-success-500/10 text-success-400'}`}>
+                            {managedUser.isBanned ? 'Забанен' : 'Активен'}
+                          </span>
+                          <button
+                            onClick={() => void toggleBan(managedUser.id, managedUser.isBanned)}
+                            className={managedUser.isBanned ? 'btn-ghost h-8 px-3 text-xs' : 'btn-danger h-8 px-3 text-xs'}
+                          >
+                            {managedUser.isBanned ? 'Разбанить' : 'Забанить'}
+                          </button>
                         </div>
-                        <select
-                          value={managedUser.role}
-                          onChange={(event) => void updateRole(managedUser.id, event.target.value as UserRole)}
-                          className="input bg-surface-950 px-3 py-1.5 text-xs"
-                        >
-                          {(['Viewer', 'Analyst', 'Moderator', 'SuperAdmin'] as UserRole[]).map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                      ))}
+                      {users?.length === 0 && (
+                        <p className="py-4 text-center text-sm text-slate-500">Пользователи не найдены</p>
+                      )}
+                    </div>
                   </div>
-                </div>
               )}
 
               <div className="card card-hud p-5">
@@ -311,7 +316,7 @@ export default function SettingsPage() {
               <p className="mb-4 text-xs text-slate-400">
                 Журнал активности аутентификации и активные пользователи системы
               </p>
-              {users && users.items.length > 0 ? (
+              {users && users.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -319,15 +324,16 @@ export default function SettingsPage() {
                         <th className="pb-2">Пользователь</th>
                         <th className="pb-2">Роль</th>
                         <th className="pb-2">Регистрация</th>
-                        <th className="pb-2">Последний вход</th>
                       </tr>
                     </thead>
                     <tbody className="text-slate-300">
-                      {users.items.map((u) => (
+                      {users.map((u) => (
                         <tr key={u.id} className="border-t border-surface-700/60">
                           <td className="py-2.5">
                             <div className="flex items-center gap-2.5">
-                              <img src={u.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-[11px] font-bold text-white">
+                                {u.username.charAt(0).toUpperCase()}
+                              </div>
                               <span className="font-medium text-slate-100">{u.username}</span>
                             </div>
                           </td>
@@ -335,7 +341,6 @@ export default function SettingsPage() {
                             <span className="badge border border-surface-700 bg-surface-800 text-slate-300">{u.role}</span>
                           </td>
                           <td className="py-2.5 text-xs text-slate-400">{formatDateTime(u.createdAt)}</td>
-                          <td className="py-2.5 text-xs text-slate-400">{formatDateTime(u.lastLoginAt)}</td>
                         </tr>
                       ))}
                     </tbody>

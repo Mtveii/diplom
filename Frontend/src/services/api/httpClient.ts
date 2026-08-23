@@ -1,33 +1,13 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosError } from 'axios'
+import { authApi } from './auth.api'
 import { useAuthStore } from '@/store/authStore'
 
+export { API_BASE_URL } from './apiBase'
+import { API_BASE_URL } from './apiBase'
+
 const httpClient = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
+  baseURL: API_BASE_URL + '/api',
 })
-
-type RefreshableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean }
-
-let refreshPromise: Promise<string> | null = null
-
-async function refreshAccessToken(): Promise<string> {
-  if (refreshPromise) {
-    return refreshPromise
-  }
-
-  refreshPromise = axios
-    .post<{ accessToken: string }>('/api/auth/refresh', null, { withCredentials: true })
-    .then((response) => {
-      const accessToken = response.data.accessToken
-      useAuthStore.getState().setAccessToken(accessToken)
-      return accessToken
-    })
-    .finally(() => {
-      refreshPromise = null
-    })
-
-  return refreshPromise
-}
 
 function extractErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<{ title?: string }>
@@ -42,22 +22,40 @@ httpClient.interceptors.request.use((config) => {
   return config
 })
 
+let reloginPromise: Promise<string> | null = null
+
+async function reloginWithEnvCredentials(): Promise<string> {
+  const email = import.meta.env.VITE_AUTH_EMAIL
+  const password = import.meta.env.VITE_AUTH_PASSWORD
+  if (!email || !password) {
+    throw new Error('Нет сохранённого токена и учётных данных для автоматического входа')
+  }
+  if (!reloginPromise) {
+    reloginPromise = authApi.login(email, password)
+      .then((token) => {
+        useAuthStore.getState().setAccessToken(token)
+        return token
+      })
+      .finally(() => {
+        reloginPromise = null
+      })
+  }
+  return reloginPromise
+}
+
 httpClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const config = error.config as RefreshableRequestConfig | undefined
-    const isAuthEndpoint = config?.url?.includes('/auth/') ?? false
+    const config = error.config as (typeof error.config & { _retry?: boolean }) | undefined
 
-    if (error.response?.status === 401 && config && !config._retry && !isAuthEndpoint) {
+    // Истёк/невалиден токен — один раз пробуем молча перелогиниться и повторить запрос.
+    if (error.response?.status === 401 && config && !config._retry) {
       config._retry = true
       try {
-        const token = await refreshAccessToken()
-        config.headers.Authorization = `Bearer ${token}`
+        await reloginWithEnvCredentials()
         return httpClient(config)
-      } catch {
-        useAuthStore.getState().logout()
-        window.location.href = '/login'
-        return Promise.reject(error)
+      } catch (reloginError) {
+        console.warn('[httpClient] Не удалось обновить токен — запрос отклонён', reloginError)
       }
     }
 

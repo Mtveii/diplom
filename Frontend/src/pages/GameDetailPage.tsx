@@ -53,6 +53,10 @@ export default function GameDetailPage() {
       const [gameData, newsData] = await Promise.all([monitoringApi.gameMonitor(targetAppId), steamApi.getNews(targetAppId)])
       setMonitor(gameData)
       setNews(newsData)
+    } catch (err) {
+      console.warn('[GameDetailPage] Не удалось загрузить данные игры — показываю пустые данные', err)
+      setMonitor(null)
+      setNews([])
     } finally {
       setLoading(false)
     }

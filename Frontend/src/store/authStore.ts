@@ -1,56 +1,34 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { LoginResponse, UserDto, UserRole } from '@/types/auth'
+import type { AuthUserProfile } from '@/types/auth'
+
+const TOKEN_STORAGE_KEY = 'slush-access-token'
 
 interface AuthState {
   accessToken: string | null
-  user: UserDto | null
-  setAuth: (response: LoginResponse) => void
+  user: AuthUserProfile | null
   setAccessToken: (token: string) => void
-  setUser: (user: UserDto | null) => void
-  logout: () => void
-  hasRole: (required: UserRole[]) => boolean
+  setUser: (user: AuthUserProfile | null) => void
 }
 
-const roleWeight: Record<UserRole, number> = {
-  Viewer: 0,
-  Analyst: 1,
-  Moderator: 2,
-  SuperAdmin: 3,
+function readInitialToken(): string | null {
+  try {
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY)
+  } catch (err) {
+    console.warn('[authStore] localStorage недоступен — токен не восстановлен', err)
+    return null
+  }
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      accessToken: null,
-      user: null,
-      setAuth: (response) =>
-        set({
-          accessToken: response.accessToken,
-          user: {
-            id: response.userId,
-            username: response.username,
-            avatarUrl: response.avatarUrl,
-            role: response.role,
-            steamId64: '',
-            createdAt: '',
-            lastLoginAt: null,
-          },
-        }),
-      setAccessToken: (token) => set({ accessToken: token }),
-      setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, user: null }),
-      hasRole: (required) => {
-        const role = get().user?.role
-        if (!role) {
-          return false
-        }
-        return required.some((r) => roleWeight[role] >= roleWeight[r])
-      },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ accessToken: state.accessToken, user: state.user }),
-    },
-  ),
-)
+export const useAuthStore = create<AuthState>()((set) => ({
+  accessToken: readInitialToken(),
+  user: null,
+  setAccessToken: (token) => {
+    try {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    } catch (err) {
+      console.warn('[authStore] Не удалось сохранить токен', err)
+    }
+    set({ accessToken: token })
+  },
+  setUser: (user) => set({ user }),
+}))

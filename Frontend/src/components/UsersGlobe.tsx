@@ -10,7 +10,7 @@ interface Point {
 }
 
 export function UsersGlobe() {
-  const users = useGlobeUsers('/hubs/globe')
+  const users = useGlobeUsers()
 
   const points: Point[] = users.map((u) => ({
     lat: u.lat,

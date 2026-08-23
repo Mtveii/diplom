@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -9,36 +9,32 @@ import {
   YAxis,
 } from 'recharts'
 import Chart from '@/components/Chart'
-import DonutChart from '@/components/DonutChart'
 import HeatmapChart from '@/components/HeatmapChart'
 import Spinner from '@/components/Spinner'
 import { chartTheme } from '@/styles/chartTheme'
-import { useClanStats } from '@/hooks/useClanStats'
 import { useDashboard } from '@/hooks/useDashboard'
 import { useMonitoringCharts } from '@/hooks/useMonitoringCharts'
-import { useOnlineStatuses } from '@/hooks/useOnlineStatuses'
-import { analyticsApi } from '@/services/api/analytics.api'
-import { formatHours, formatRelativeDate } from '@/utils/format'
-import type { PeriodComparisonDto } from '@/types/analytics'
+import { useOnlineUsers } from '@/hooks/useOnlineUsers'
+import { formatRelativeDate } from '@/utils/format'
 
 type TimeFilterKey = 'today' | 'week' | 'month'
 
-const timeFilters: { key: TimeFilterKey; label: string; apiPeriod: 'day' | 'week' | 'month'; compareDays: number }[] = [
-  { key: 'today', label: 'Сегодня', apiPeriod: 'day', compareDays: 1 },
-  { key: 'week', label: '7 дней', apiPeriod: 'week', compareDays: 7 },
-  { key: 'month', label: '30 дней', apiPeriod: 'month', compareDays: 30 },
+const timeFilters: { key: TimeFilterKey; label: string; apiPeriod: 'day' | 'week' | 'month' }[] = [
+  { key: 'today', label: 'Сегодня', apiPeriod: 'day' },
+  { key: 'week', label: '7 дней', apiPeriod: 'week' },
+  { key: 'month', label: '30 дней', apiPeriod: 'month' },
 ]
 
 export default function DashboardPage() {
   const { summary, loading, reload: reloadSummary } = useDashboard()
-  const { activity, heatmap, setPeriod, loading: chartsLoading, reload: reloadCharts } = useMonitoringCharts()
-  const { counts, ranks, statuses, topGames } = useClanStats()
-  const { online, connected } = useOnlineStatuses()
+  const { activity, heatmap, gameTrends, setPeriod, loading: chartsLoading, reload: reloadCharts } = useMonitoringCharts()
+  const { users: onlineUsers } = useOnlineUsers()
+
+  const onlineTopGames = useMemo(() => gameTrends.slice(0, 5), [gameTrends])
 
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('week')
   const currentFilter = timeFilters.find((filter) => filter.key === timeFilter) ?? timeFilters[1]
 
-  const [comparison, setComparison] = useState<PeriodComparisonDto | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [refreshing, setRefreshing] = useState(false)
 
@@ -51,31 +47,10 @@ export default function DashboardPage() {
     setPeriod(currentFilter.apiPeriod)
   }, [currentFilter.apiPeriod, setPeriod])
 
-  useEffect(() => {
-    let cancelled = false
-    analyticsApi
-      .compare(currentFilter.compareDays)
-      .then((data) => {
-        if (!cancelled) {
-          setComparison(data)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setComparison(null)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [currentFilter.compareDays])
-
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
       await Promise.all([reloadCharts(), reloadSummary()])
-      const data = await analyticsApi.compare(currentFilter.compareDays).catch(() => null)
-      setComparison(data)
     } finally {
       setRefreshing(false)
     }
@@ -154,7 +129,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-6 pt-4 border-t border-surface-700/60 flex items-center justify-between text-xs text-slate-400">
-            <span>Заявки: <strong className="text-white">{summary?.pendingApplications ?? 0}</strong></span>
+            <span>Стабильность сети: <strong className="text-success-400">{summary?.networkStabilityPercent != null ? `${summary.networkStabilityPercent}%` : '—'}</strong></span>
             <span>Алерты: <strong className="text-rose-400">{summary?.activeAlerts ?? 0}</strong></span>
           </div>
         </div>
@@ -166,30 +141,28 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400 font-medium">АКТИВНЫХ ИГРОКОВ</span>
-              <span className="text-sm font-bold text-white">{comparison?.currentActivePlayers ?? '—'}</span>
-              <span className={`text-[10px] ${comparison && comparison.activePlayersChangePercent >= 0 ? 'text-success-400' : 'text-rose-400'}`}>
-                {comparison ? `${comparison.activePlayersChangePercent >= 0 ? '+' : ''}${comparison.activePlayersChangePercent}%` : '—'}
-              </span>
+              <span className="text-[11px] text-slate-400 font-medium">ПОЛЬЗОВАТЕЛЕЙ ОНЛАЙН</span>
+              <span className="text-sm font-bold text-white">{onlineUsers.length}</span>
+              <span className="text-[10px] text-slate-500">в сети сейчас</span>
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400 font-medium">СЫГРАНО ВРЕМЕНИ</span>
-              <span className="text-sm font-bold text-white">{comparison ? formatHours(comparison.currentPlaytimeMinutes) : '—'}</span>
-              <span className={`text-[10px] ${comparison && comparison.playtimeChangePercent >= 0 ? 'text-success-400' : 'text-rose-400'}`}>
-                {comparison ? `${comparison.playtimeChangePercent >= 0 ? '+' : ''}${comparison.playtimeChangePercent}%` : '—'}
-              </span>
+              <span className="text-[11px] text-slate-400 font-medium">АКТИВНЫХ СЕССИЙ</span>
+              <span className="text-sm font-bold text-white">{summary?.playersToday ?? '—'}</span>
+              <span className="text-[10px] text-slate-500">по сети Slush</span>
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400 font-medium">СРЕДНИЙ ОНЛАЙН</span>
-              <span className="text-sm font-bold text-white">{comparison ? Math.round(comparison.currentAverageDailyOnline) : '—'}</span>
-              <span className={`text-[10px] ${comparison && comparison.averageOnlineChangePercent >= 0 ? 'text-success-400' : 'text-rose-400'}`}>
-                {comparison ? `${comparison.averageOnlineChangePercent >= 0 ? '+' : ''}${comparison.averageOnlineChangePercent}%` : '—'}
+              <span className="text-[11px] text-slate-400 font-medium">СТАБИЛЬНОСТЬ СЕТИ</span>
+              <span className={`text-sm font-bold ${(summary?.networkStabilityPercent ?? 0) >= 95 ? 'text-success-400' : 'text-warning-400'}`}>
+                {summary?.networkStabilityPercent != null ? `${summary.networkStabilityPercent}%` : '—'}
               </span>
+              <span className="text-[10px] text-slate-500">uptime API</span>
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400 font-medium">SIGNALR / HUB</span>
-              <span className="text-sm font-bold text-success-400">Connected</span>
-              <span className="text-[10px] text-success-400">Live Sync</span>
+              <span className="text-[11px] text-slate-400 font-medium">ТОП ИГРА СЕЙЧАС</span>
+              <span className="truncate text-sm font-bold text-white" title={gameTrends[0]?.name}>
+                {gameTrends[0]?.name ?? '—'}
+              </span>
+              <span className="text-[10px] text-primary-300">{gameTrends[0] ? `${gameTrends[0].count} игроков` : 'нет данных'}</span>
             </div>
           </div>
         </div>
@@ -226,47 +199,21 @@ export default function DashboardPage() {
       {/* Heatmap 100% width */}
       <HeatmapChart data={heatmap} />
 
-      {/* Bottom Grid: Portfolio Overview (Left) & Watchlist / Stats (Right) */}
+      {/* Bottom Grid: Top Games & Online Users */}
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="card card-hud p-5">
           <div className="card-header-hud">
-            <h3 className="card-header-hud__title">Состав клана по рангам</h3>
-          </div>
-          {counts.total === 0 ? (
-            <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
-              Участники ещё не добавлены
-            </div>
-          ) : (
-            <DonutChart data={ranks} centerValue={counts.total} centerLabel="участников" />
-          )}
-        </div>
-
-        <div className="card card-hud p-5">
-          <div className="card-header-hud">
-            <h3 className="card-header-hud__title">Статусы участников</h3>
-          </div>
-          {counts.total === 0 ? (
-            <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
-              Участники ещё не добавлены
-            </div>
-          ) : (
-            <DonutChart data={statuses} centerValue={counts.online} centerLabel="онлайн из всех" />
-          )}
-        </div>
-
-        <div className="card card-hud p-5">
-          <div className="card-header-hud">
-            <h3 className="card-header-hud__title">Топ-5 игр клана</h3>
+            <h3 className="card-header-hud__title">Топ игр сети</h3>
             <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">сейчас в игре</span>
           </div>
-          {topGames.length === 0 ? (
+          {onlineTopGames.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
               Сейчас никто не играет
             </div>
           ) : (
-            <div style={{ height: Math.max(140, topGames.length * 40) }}>
+            <div style={{ height: Math.max(140, onlineTopGames.length * 40) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topGames} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={onlineTopGames} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <YAxis
@@ -296,45 +243,37 @@ export default function DashboardPage() {
 
         <div className="card card-hud p-5">
           <div className="card-header-hud">
-            <h3 className="card-header-hud__title">Клан онлайн сейчас</h3>
-            <span
-              className={`card-header-hud__subtitle badge border border-surface-700 ${
-                connected ? 'bg-success-500/10 text-success-400' : 'bg-warning-500/10 text-warning-400'
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  connected ? 'animate-pulse-dot bg-success-400' : 'animate-pulse bg-warning-400'
-                }`}
-              />
-              {connected ? 'Live' : 'подключение...'}
+            <h3 className="card-header-hud__title">Пользователи сети онлайн</h3>
+            <span className="card-header-hud__subtitle badge border border-success-500/40 bg-success-500/10 text-success-400">
+              <span className="h-1.5 w-1.5 rounded-full animate-pulse-dot bg-success-400" />
+              {onlineUsers.length} в сети
             </span>
           </div>
-          {Object.values(online).filter((member) => member.isOnline).length === 0 ? (
+          {onlineUsers.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
-              Сейчас никто из клана не в сети
+              Сейчас никто из сети не в игре
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              {Object.values(online)
-                .filter((member) => member.isOnline)
-                .sort((a, b) => (a.gameName ? -1 : 0) - (b.gameName ? -1 : 0))
+              {[...onlineUsers]
+                .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
                 .map((member) => (
                   <div
-                    key={member.steamId64}
+                    key={member.steamId}
                     className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-800/60"
                   >
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${
-                        member.gameName ? 'animate-pulse-dot bg-primary-400' : 'bg-success-400'
+                        member.currentGame ? 'animate-pulse-dot bg-primary-400' : 'bg-success-400'
                       }`}
                     />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-200">
-                      ...{member.steamId64.slice(-7)}
+                      {member.nickname}
+                      <span className="ml-1.5 text-xs text-slate-500">{member.city}, {member.country}</span>
                     </span>
-                    {member.gameName ? (
-                      <span className="max-w-32 truncate text-xs text-primary-300" title={member.gameName}>
-                        {member.gameName}
+                    {member.currentGame ? (
+                      <span className="max-w-32 truncate text-xs text-primary-300" title={member.currentGame}>
+                        {member.currentGame}
                       </span>
                     ) : (
                       <span className="shrink-0 text-xs text-success-400">Онлайн</span>

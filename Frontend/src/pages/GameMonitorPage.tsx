@@ -14,7 +14,6 @@ import {
 import AlertRulesPanel from '@/components/AlertRulesPanel'
 import { chartTheme } from '@/styles/chartTheme'
 import CatalogDetailModal from '@/components/CatalogDetailModal'
-import ErrorState from '@/components/ErrorState'
 import GameCatalogCard from '@/components/GameCatalogCard'
 import GameMonitorTrendChart from '@/components/GameMonitorTrendChart'
 import Spinner from '@/components/Spinner'
@@ -78,7 +77,7 @@ function CatalogGridSkeleton() {
 }
 
 export default function GameMonitorPage() {
-  const { games, totalResults, loading, loadingMore, error, reload, loadMore, hasMore } = useCatalog()
+  const { games, totalResults, loading, loadingMore, reload, loadMore, hasMore } = useCatalog()
   const navigate = useNavigate()
 
   const [query, setQuery] = useState('')
@@ -254,6 +253,10 @@ export default function GameMonitorPage() {
       const [gameData, newsData] = await Promise.all([monitoringApi.gameMonitor(appId), steamApi.getNews(appId)])
       setGame(gameData)
       setNews(newsData)
+    } catch (err) {
+      console.warn('[GameMonitorPage] Не удалось загрузить данные игры — показываю пустые данные', err)
+      setGame(null)
+      setNews([])
     } finally {
       setMonitorLoading(false)
     }
@@ -289,10 +292,6 @@ export default function GameMonitorPage() {
 
   if (loading) {
     return <CatalogGridSkeleton />
-  }
-
-  if (error) {
-    return <ErrorState message="Не удалось загрузить каталог игр" onRetry={() => void reload()} />
   }
 
   const matchedCount = games.filter((g) => g.steamAppId != null).length

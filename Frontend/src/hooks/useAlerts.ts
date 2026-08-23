@@ -9,13 +9,20 @@ export function useAlerts() {
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [items, count] = await Promise.all([
-      alertsApi.getHistory(100),
-      alertsApi.unreadCount(),
-    ])
-    setHistory(items)
-    setUnreadCount(count)
-    setLoading(false)
+    try {
+      const [items, count] = await Promise.all([
+        alertsApi.getHistory(100),
+        alertsApi.unreadCount(),
+      ])
+      setHistory(items)
+      setUnreadCount(count)
+    } catch (err) {
+      console.warn('[useAlerts] Не удалось загрузить алерты — показываю пустой список', err)
+      setHistory([])
+      setUnreadCount(0)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -31,16 +38,24 @@ export function useAlerts() {
     return () => onAlertTriggered(() => undefined)
   }, [])
 
-  const markAsRead = useCallback(async (id: number) => {
-    await alertsApi.markAsRead(id)
-    setHistory((prev) => prev.map((x) => (x.id === id ? { ...x, isRead: true } : x)))
-    setUnreadCount((prev) => Math.max(0, prev - 1))
+  const markAsRead = useCallback(async (id: string) => {
+    try {
+      await alertsApi.markAsRead(id)
+      setHistory((prev) => prev.map((x) => (x.id === id ? { ...x, isRead: true } : x)))
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    } catch (err) {
+      console.warn('[useAlerts] Не удалось отметить алерт прочитанным', err)
+    }
   }, [])
 
   const markAllAsRead = useCallback(async () => {
-    await alertsApi.markAllAsRead()
-    setHistory((prev) => prev.map((x) => ({ ...x, isRead: true })))
-    setUnreadCount(0)
+    try {
+      await alertsApi.markAllAsRead()
+      setHistory((prev) => prev.map((x) => ({ ...x, isRead: true })))
+      setUnreadCount(0)
+    } catch (err) {
+      console.warn('[useAlerts] Не удалось отметить все алерты прочитанными', err)
+    }
   }, [])
 
   return { history, unreadCount, loading, reload, markAsRead, markAllAsRead }

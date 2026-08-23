@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { alertsApi } from '@/services/api/alerts.api'
-import { applicationsApi } from '@/services/api/members.api'
 import { onReconnected, onReconnecting } from '@/services/signalr'
-import { useAuthStore } from '@/store/authStore'
 import Breadcrumbs from './Breadcrumbs'
 import NotificationBell from './NotificationBell'
 import UserMenu from './UserMenu'
@@ -31,25 +29,13 @@ const navItems: NavItem[] = [
   },
   {
     to: '/members',
-    label: 'Участники',
+    label: 'Пользователи',
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    to: '/applications',
-    label: 'Заявки',
-    icon: (
-      <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <path d="M14 2v6h6" />
-        <path d="M12 18v-6" />
-        <path d="M9 15h6" />
       </svg>
     ),
   },
@@ -70,7 +56,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/analytics',
-    label: 'Аналитика',
+    label: 'Аналитика юзеров',
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v16a2 2 0 0 0 2 2h16" />
@@ -129,14 +115,10 @@ function useConnectionStatus(): ConnectionStatus {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const hasRole = useAuthStore((state) => state.hasRole)
   const location = useLocation()
-  const [appBadge, setAppBadge] = useState(0)
   const [alertBadge, setAlertBadge] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const connectionStatus = useConnectionStatus()
-
-  const canModerate = hasRole(['Moderator', 'SuperAdmin'])
 
   useEffect(() => {
     setMobileNavOpen(false)
@@ -145,18 +127,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
   useEffect(() => {
     const loadBadges = async () => {
       try {
-        const [apps, alerts] = await Promise.all([
-          canModerate ? applicationsApi.getAll() : Promise.resolve([]),
-          alertsApi.unreadCount(),
-        ])
-        setAppBadge(apps.filter((app) => app.status === 'Pending').length)
-        setAlertBadge(alerts)
+        setAlertBadge(await alertsApi.unreadCount())
       } catch {
         // бейджи некритичны
       }
     }
     void loadBadges()
-  }, [canModerate, location.pathname])
+  }, [location.pathname])
 
   return (
     <div className="flex h-screen w-screen overflow-hidden text-slate-100">
@@ -193,7 +170,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           <div className="hidden items-center gap-1.5 overflow-x-auto lg:flex lg:flex-1 lg:justify-center">
             {navItems.map((item) => {
-              const badge = item.to === '/applications' ? appBadge : item.to === '/games' ? alertBadge : 0
+              const badge = item.to === '/games' ? alertBadge : 0
               return (
                 <NavLink
                   key={item.to}
@@ -240,7 +217,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div className="absolute inset-x-0 top-[65px] z-50 border-b border-surface-700 bg-surface-950/95 p-4 shadow-card backdrop-blur-md animate-scale-in lg:hidden">
             <nav className="flex flex-col gap-1.5">
               {navItems.map((item) => {
-                const badge = item.to === '/applications' ? appBadge : item.to === '/games' ? alertBadge : 0
+                const badge = item.to === '/games' ? alertBadge : 0
                 return (
                   <NavLink
                     key={item.to}

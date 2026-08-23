@@ -1,21 +1,21 @@
-export type AlertRuleType = 'NoLoginFor' | 'ReviewDrop' | 'DiscountStarted' | 'NewsRelease'
+export type AlertRuleType = string
 
-export type AlertCondition = 'LessThan' | 'GreaterThan' | 'Equals'
+export type AlertCondition = string
 
 export interface AlertRuleDto {
-  id: number
+  id: string
   name: string
   type: AlertRuleType
   targetId: string | null
   condition: AlertCondition
   thresholdValue: number
   isActive: boolean
-  createdAt: string
+  createdAt: string | null
 }
 
 export interface AlertHistoryDto {
-  id: number
-  ruleId: number
+  id: string
+  ruleId: number | null
   ruleName: string
   triggeredAt: string
   message: string

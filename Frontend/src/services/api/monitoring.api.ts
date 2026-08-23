@@ -4,24 +4,77 @@ import type {
   DashboardSummaryDto,
   GameMonitorDto,
   HeatmapPointDto,
-  OnlineStatusDto,
+  OnlineUserDto,
+  TopGamesPointDto,
   TopPlayerDto,
 } from '@/types/monitoring'
 
-export const monitoringApi = {
-  summary: () => httpClient.get<DashboardSummaryDto>('/monitoring/summary').then((r) => r.data),
+/** Сырые формы ответов Slush API (могут отличаться от наших DTO). */
+interface SlushSummaryDto {
+  totalMembers: number
+  onlineMembers: number
+  activeSessionsCount: number
+  networkStabilityPercent: number
+  activeAlertsCount: number
+}
 
-  online: () => httpClient.get<OnlineStatusDto[]>('/monitoring/online').then((r) => r.data),
+interface SlushActivityPointDto {
+  timestamp: string
+  activeCount: number
+}
+
+interface SlushHeatmapPointDto {
+  dayOfWeek: number
+  hour: number
+  intensity: number
+}
+
+interface SlushGameTrendPointDto {
+  gameName: string
+  playerCount: number
+}
+
+export const monitoringApi = {
+  summary: async (): Promise<DashboardSummaryDto> => {
+    const raw = await httpClient.get<SlushSummaryDto>('/Monitoring/summary').then((r) => r.data)
+    return {
+      totalMembers: raw.totalMembers,
+      onlineNow: raw.onlineMembers,
+      playersToday: raw.activeSessionsCount,
+      activeThisWeek: 0,
+      pendingApplications: 0,
+      activeAlerts: raw.activeAlertsCount,
+      networkStabilityPercent: raw.networkStabilityPercent,
+    }
+  },
+
+  /** Живые пользователи сети с гео-координатами (для глобуса и блока «кто онлайн»). */
+  onlineUsers: () =>
+    httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data),
 
   activity: (period: 'day' | 'week' | 'month') =>
-    httpClient.get<ActivityPointDto[]>('/monitoring/activity', { params: { period } }).then((r) => r.data),
+    httpClient
+      .get<SlushActivityPointDto[]>('/Monitoring/activity-history', { params: { period } })
+      .then((r): ActivityPointDto[] => r.data.map((point) => ({ timestamp: point.timestamp, onlineCount: point.activeCount }))),
 
-  heatmap: (days = 30) =>
-    httpClient.get<HeatmapPointDto[]>('/monitoring/heatmap', { params: { days } }).then((r) => r.data),
+  heatmap: (_days = 30) =>
+    httpClient
+      .get<SlushHeatmapPointDto[]>('/Monitoring/heatmap')
+      .then((r): HeatmapPointDto[] => r.data.map((point) => ({ ...point, activeCount: point.intensity }))),
 
-  topPlayers: (period: string, limit = 10) =>
-    httpClient.get<TopPlayerDto[]>('/monitoring/top-players', { params: { period, limit } }).then((r) => r.data),
+  /** Топ игр по числу игроков (для графика «Топ-5 игр» на дашборде). */
+  gameTrends: () =>
+    httpClient
+      .get<SlushGameTrendPointDto[]>('/Monitoring/game-trends')
+      .then((r): TopGamesPointDto[] => r.data.map((point) => ({ name: point.gameName, count: point.playerCount }))),
 
-  gameMonitor: (appId: number) =>
-    httpClient.get<GameMonitorDto>(`/monitoring/games/${appId}`).then((r) => r.data),
+  topPlayers: async (_period: string, _limit = 10): Promise<TopPlayerDto[]> => {
+    console.info('[monitoringApi] topPlayers: эндпоинт отсутствует в Slush API — возвращаю пустой список')
+    return []
+  },
+
+  gameMonitor: async (_appId: number): Promise<GameMonitorDto | null> => {
+    console.info('[monitoringApi] gameMonitor: эндпоинт отсутствует в Slush API — возвращаю null')
+    return null
+  },
 }

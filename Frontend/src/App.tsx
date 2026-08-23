@@ -1,12 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from '@/components/AppLayout'
+import AuthBootstrap from '@/components/AuthBootstrap'
 import CommandPalette from '@/components/CommandPalette'
-import ProtectedRoute from '@/components/ProtectedRoute'
 import Toaster from '@/components/Toaster'
 import AnalyticsPage from '@/pages/AnalyticsPage'
-import ApplicationsPage from '@/pages/ApplicationsPage'
-import AuthPage from '@/pages/AuthPage'
-import ClanMembersPage from '@/pages/ClanMembersPage'
+import UsersPage from '@/pages/UsersPage'
 import CommandCenterPage from '@/pages/CommandCenterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
@@ -15,89 +13,63 @@ import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <AuthBootstrap>
+      <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/login/callback" element={<AuthPage />} />
-
         <Route
           path="/"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <DashboardPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <DashboardPage />
+            </AppLayout>
           }
         />
         <Route
           path="/members"
           element={
-            <ProtectedRoute requiredRole={['Moderator', 'SuperAdmin']}>
-              <AppLayout>
-                <ClanMembersPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/applications"
-          element={
-            <ProtectedRoute requiredRole={['Moderator', 'SuperAdmin']}>
-              <AppLayout>
-                <ApplicationsPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <UsersPage />
+            </AppLayout>
           }
         />
         <Route
           path="/games"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <GameMonitorPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <GameMonitorPage />
+            </AppLayout>
           }
         />
         <Route
           path="/games/:id"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <GameDetailPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <GameDetailPage />
+            </AppLayout>
           }
         />
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute requiredRole={['Analyst', 'Moderator', 'SuperAdmin']}>
-              <AppLayout>
-                <AnalyticsPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <AnalyticsPage />
+            </AppLayout>
           }
         />
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <SettingsPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <SettingsPage />
+            </AppLayout>
           }
         />
         <Route
           path="/command-center"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <CommandCenterPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <AppLayout>
+              <CommandCenterPage />
+            </AppLayout>
           }
         />
 
@@ -105,6 +77,7 @@ export default function App() {
       </Routes>
       <Toaster />
       <CommandPalette />
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthBootstrap>
   )
 }

@@ -1,13 +1,21 @@
 export type UserRole = 'Viewer' | 'Analyst' | 'Moderator' | 'SuperAdmin'
 
-export interface LoginResponse {
-  accessToken: string
-  refreshToken: string
-  accessTokenExpiresAt: string
-  userId: number
+/** Текущий пользователь (GET /Profile/me + роль из JWT). */
+export interface AuthUserProfile {
+  userId: string
+  email: string | null
+  username: string | null
+  role: string
+}
+
+/** Пользователь сети Slush (GET /Admin/users). */
+export interface AdminUserDto {
+  id: string
   username: string
-  avatarUrl: string
-  role: UserRole
+  email: string | null
+  role: string
+  isBanned: boolean
+  createdAt: string
 }
 
 export interface UserDto {

@@ -10,6 +10,9 @@ export function useDashboard() {
     try {
       const data = await monitoringApi.summary()
       setSummary(data)
+    } catch (err) {
+      console.warn('[useDashboard] Не удалось загрузить сводку — показываю пустые данные', err)
+      setSummary(null)
     } finally {
       setLoading(false)
     }

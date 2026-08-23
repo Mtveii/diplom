@@ -5,6 +5,26 @@ export interface DashboardSummaryDto {
   activeThisWeek: number
   pendingApplications: number
   activeAlerts: number
+  networkStabilityPercent?: number
+}
+
+/** Пользователь сети Slush с гео-координатами (GET /Monitoring/online). */
+export interface OnlineUserDto {
+  steamId: string
+  nickname: string
+  status: string
+  currentGame: string | null
+  playtimeHours: number
+  lat: number
+  lng: number
+  city: string
+  country: string
+}
+
+/** Точка графика «Топ игр» (GET /Monitoring/game-trends). */
+export interface TopGamesPointDto {
+  name: string
+  count: number
 }
 
 export interface OnlineStatusDto {
