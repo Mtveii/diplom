@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net/api/:path*"
+    },
+    {
+      "source": "/hubs/:path*",
+      "destination": "https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net/hubs/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
