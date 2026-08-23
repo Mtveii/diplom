@@ -159,7 +159,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </svg>
               </div>
               <div className="hidden sm:block">
-                <div className="text-sm font-bold tracking-tight text-white">Steam Clan Admin</div>
+                <div className="text-sm font-bold tracking-tight text-white">Steam Users Admin</div>
                 <div className="text-[10px] text-slate-400">Dashboard</div>
               </div>
             </div>

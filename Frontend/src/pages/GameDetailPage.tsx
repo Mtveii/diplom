@@ -377,10 +377,10 @@ export default function GameDetailPage() {
               <>
                 <div className="card-header-hud mb-3">
                   <h3 className="card-header-hud__title">
-                    Ачивки: клан vs глобально
+                    Ачивки: наши игроки vs глобально
                   </h3>
                   <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">
-                    владельцев в клане: {monitor.clanOwners}
+                    владельцев среди наших игроков: {monitor.clanOwners}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -388,7 +388,7 @@ export default function GameDetailPage() {
                     <thead>
                       <tr className="text-left text-xs text-slate-400">
                         <th className="pb-2">Ачивка</th>
-                        <th className="pb-2">Клан, %</th>
+                        <th className="pb-2">Наши, %</th>
                         <th className="pb-2">Глобально, %</th>
                       </tr>
                     </thead>
@@ -407,7 +407,7 @@ export default function GameDetailPage() {
                 </div>
               </>
             ) : (
-              <EmptyState title="Ачивки недоступны" description="Сравнение с кланом требует подключённого Steam аккаунта" />
+              <EmptyState title="Ачивки недоступны" description="Сравнение с нашими игроками требует подключённого Steam аккаунта" />
             )}
           </div>
         )}

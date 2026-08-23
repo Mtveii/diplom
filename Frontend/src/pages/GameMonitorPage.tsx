@@ -791,10 +791,10 @@ export default function GameMonitorPage() {
             <div className="card card-hud p-5">
               <div className="card-header-hud mb-3">
                 <h3 className="card-header-hud__title">
-                  Ачивки: клан vs глобально
+                  Ачивки: наши игроки vs глобально
                 </h3>
                 <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">
-                  владельцев в клане: {game.clanOwners}
+                  владельцев среди наших игроков: {game.clanOwners}
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -802,7 +802,7 @@ export default function GameMonitorPage() {
                   <thead>
                     <tr className="text-left text-xs text-slate-400">
                       <th className="pb-2">Ачивка</th>
-                      <th className="pb-2">Клан, %</th>
+                      <th className="pb-2">Наши, %</th>
                       <th className="pb-2">Глобально, %</th>
                     </tr>
                   </thead>

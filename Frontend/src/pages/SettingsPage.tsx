@@ -21,7 +21,7 @@ const rolePermissions: Array<{ role: UserRole; name: string; description: string
   {
     role: 'Viewer',
     name: 'Наблюдатель',
-    description: 'Базовый доступ для просмотра данных клана',
+    description: 'Базовый доступ для просмотра данных пользователей',
     permissions: ['Просмотр дашборда', 'Просмотр каталога игр и мониторинга', 'Просмотр списка участников'],
   },
   {
@@ -359,8 +359,8 @@ export default function SettingsPage() {
               </div>
               <div className="flex flex-col gap-3 text-sm leading-relaxed text-slate-300">
                 <p>
-                  <strong className="text-white">Админ-панель Steam-клана</strong> — дипломный программный комплекс для
-                  автоматизации мониторинга состава клана, игровой активности участников, цен игр в Steam/GOG/Epic/F2G, а также
+                  <strong className="text-white">Админ-панель пользователей Steam</strong> — дипломный программный комплекс для
+                  автоматизации мониторинга пользователей, их игровой активности и создания аккаунтов, цен игр в Steam/GOG/Epic/F2G, а также
                   управления заявками и алертами в реальном времени.
                 </p>
                 <div className="tech-badges pt-2">
@@ -445,7 +445,7 @@ export default function SettingsPage() {
                 type="text"
                 value={channelForm.recipients}
                 onChange={(e) => setChannelForm({ ...channelForm, recipients: e.target.value })}
-                placeholder="admin@example.com, clan@example.com"
+                placeholder="admin@example.com, user@example.com"
                 className="input w-full bg-surface-950 px-3 py-2 text-sm"
               />
             </div>

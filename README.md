@@ -1,6 +1,6 @@
-# Steam Clan Admin Panel
+# Steam Users Admin Panel
 
-Дипломный проект: админ-панель для Steam-клана. Backend — ASP.NET Core 8 (Clean Architecture), Frontend — React + TypeScript + Vite.
+Дипломный проект: админ-панель мониторинга пользователей Steam (активность, создание аккаунтов). Backend — ASP.NET Core 8 (Clean Architecture), Frontend — React + TypeScript + Vite.
 
 ## Состав
 

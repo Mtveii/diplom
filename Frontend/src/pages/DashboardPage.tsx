@@ -57,7 +57,7 @@ export default function DashboardPage() {
   }
 
   if (loading || chartsLoading) {
-    return <Spinner label="Загрузка данных клана..." fullPage />
+    return <Spinner label="Загрузка данных..." fullPage />
   }
 
   const lastActivityAt = activity.length
@@ -69,7 +69,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-base sm:text-xl font-bold text-white">Welcome, Администратор</h1>
-          <p className="hidden sm:block mt-0.5 text-xs sm:text-sm text-slate-400">Обзор показателей и активности Steam-клана в реальном времени</p>
+          <p className="hidden sm:block mt-0.5 text-xs sm:text-sm text-slate-400">Обзор показателей, активности и создания аккаунтов пользователей Steam в реальном времени</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500">
@@ -119,9 +119,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="card card-hud p-4 sm:p-6 xl:col-span-1 flex flex-col justify-between">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Holding / Актив клана</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Users / База пользователей</div>
             <div className="mt-2 text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
-              {summary?.totalMembers ?? 0} <span className="text-sm font-normal text-slate-400">участников</span>
+              {summary?.totalMembers ?? 0} <span className="text-sm font-normal text-slate-400">пользователей</span>
             </div>
             <div className="mt-1.5 flex items-center gap-2 text-xs">
               <span className="rounded-full bg-success-500/15 px-2 py-0.5 text-success-400 font-semibold">+{summary?.onlineNow ?? 0} онлайн</span>

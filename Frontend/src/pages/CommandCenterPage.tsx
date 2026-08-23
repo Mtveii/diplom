@@ -28,7 +28,7 @@ export default function CommandCenterPage() {
           <div className="flex items-center gap-1.5 font-black tracking-wider text-xl italic bg-gradient-to-r from-orange-500 via-amber-400 to-primary-400 bg-clip-text text-transparent">
             <span>STEAM</span>
             <span className="text-xs font-normal not-italic text-slate-400 tracking-normal border-l border-slate-700 pl-2">
-              Clan Operations / Командный центр
+              User Operations / Командный центр
             </span>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function CommandCenterPage() {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-300">Готовность клана</span>
+                  <span className="text-slate-300">Готовность пользователей</span>
                   <span className="font-mono text-amber-400">94.8%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
