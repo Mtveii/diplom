@@ -12,13 +12,15 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Локального бэкенда в репозитории нет — проксируем на продовый Slush API.
+    // Если запускаешь свой бэкенд, верни target: 'http://localhost:8080'.
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net',
         changeOrigin: true,
       },
       '/hubs': {
-        target: 'http://localhost:8080',
+        target: 'https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net',
         changeOrigin: true,
         ws: true,
       },
