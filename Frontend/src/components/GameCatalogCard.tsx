@@ -41,6 +41,14 @@ function formatOwnersCompact(owners: string | null): string {
   return compact.length === 2 ? `${compact[0]}–${compact[1]}` : compact[0] ?? owners
 }
 
+function formatReleaseYear(releaseDate: string | null): string {
+  if (!releaseDate) {
+    return ''
+  }
+  const year = new Date(releaseDate).getFullYear()
+  return Number.isNaN(year) ? '' : String(year)
+}
+
 const STEAMSPY_HINT = 'По данным SteamSpy, оценка, погрешность ±10%'
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -63,7 +71,7 @@ function Stars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
-          className={`h-3 w-3 ${star <= Math.round(rating) ? 'text-primary-400' : 'text-surface-700'}`}
+          className={`h-3.5 w-3.5 ${star <= Math.round(rating) ? 'text-primary-400' : 'text-surface-700'}`}
           viewBox="0 0 24 24"
           fill="currentColor"
         >
@@ -80,6 +88,8 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
   const rating = game.rating != null ? game.rating / 20 : 0
   const price = formatPrice(game)
   const genre = game.genres[0]
+  const releaseYear = compact ? '' : formatReleaseYear(game.releaseDate)
+  const plainDescription = compact || !game.description ? '' : game.description.replace(/<[^>]*>/g, '')
   const storeSources = game.sources.filter((source) => source !== 'steamspy')
   const watched = isWatched(game.id)
   const monitored = isMonitored(game.steamAppId)
@@ -109,7 +119,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
             {storeSources.map((source) => (
               <span
                 key={source}
-                className="flex items-center gap-1 rounded-full bg-surface-950/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-200 backdrop-blur-sm"
+                className="flex items-center gap-1 rounded-full bg-surface-950/75 px-1.5 py-0.5 text-[10px] font-semibold text-slate-200 backdrop-blur-sm"
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${SOURCE_COLORS[source] ?? 'bg-slate-400'}`} />
                 {SOURCE_LABELS[source] ?? source}
@@ -151,29 +161,60 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
         </div>
       </div>
 
-      <div className={`flex min-w-0 flex-1 flex-col gap-1 ${compact ? 'p-2.5' : 'p-3'}`}>
+      <div className={`flex min-w-0 flex-1 flex-col ${compact ? 'gap-1 p-2.5' : 'gap-2 p-3.5'}`}>
         <h3
-          className={`${compact ? 'line-clamp-1 text-sm' : 'line-clamp-2 text-base'} font-semibold leading-snug text-slate-100 transition-colors group-hover:text-white`}
+          className={`font-semibold leading-snug text-slate-100 transition-colors group-hover:text-white ${
+            compact ? 'line-clamp-1 text-[13px]' : 'line-clamp-2 min-h-[2.6em] text-[15px]'
+          }`}
           title={game.name}
         >
           {game.name}
         </h3>
 
-        {!compact && genre && <p className="truncate text-[11px] text-slate-500">{genre}</p>}
+        {!compact && (genre || releaseYear) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {genre && (
+              <span className="truncate rounded-md border border-surface-700/60 bg-surface-800/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                {genre}
+              </span>
+            )}
+            {releaseYear && <span className="text-[10px] font-medium text-slate-400">{releaseYear}</span>}
+          </div>
+        )}
 
-        <div className={`mt-auto flex items-end justify-between gap-2 pt-1 ${matched ? 'pr-10' : ''}`}>
+        {plainDescription && (
+          <p className="line-clamp-2 text-xs leading-relaxed text-slate-400" title={plainDescription}>
+            {plainDescription}
+          </p>
+        )}
+
+        <div
+          className={`mt-auto flex items-end justify-between gap-2 pt-1.5 ${
+            matched ? 'pr-11' : ''
+          } ${compact ? '' : 'border-t border-surface-800/80 pt-2'}`}
+        >
           <div className="flex min-w-0 items-center gap-1.5">
             {!compact && rating > 0 && <Stars rating={rating} />}
-            <span className="text-[11px] font-medium text-slate-400">{rating > 0 ? rating.toFixed(1) : '—'}</span>
+            <span className={`text-xs font-semibold ${rating > 0 ? 'text-slate-200' : 'text-slate-500'}`}>
+              {rating > 0 ? rating.toFixed(1) : '—'}
+            </span>
             {matched && game.ownersEstimate && (
-              <span className="truncate text-[10px] text-slate-500" title={STEAMSPY_HINT}>
-                {formatOwnersCompact(game.ownersEstimate)}
+              <span className={`min-w-0 truncate text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`} title={STEAMSPY_HINT}>
+                · {formatOwnersCompact(game.ownersEstimate)}
               </span>
             )}
           </div>
           {(game.isFree || game.price > 0) && (
             <span
-              className={`shrink-0 font-bold ${compact ? 'text-xs' : 'text-sm'} ${game.isFree ? 'text-success-400' : 'text-white'}`}
+              className={`shrink-0 font-bold ${compact ? 'text-xs' : 'rounded-lg px-2 py-0.5 text-sm'} ${
+                game.isFree
+                  ? compact
+                    ? 'text-success-400'
+                    : 'border border-success-500/30 bg-success-500/10 text-success-400'
+                  : compact
+                    ? 'text-white'
+                    : 'border border-surface-700/60 bg-surface-800/70 text-white'
+              }`}
               title={matched ? `Цена ${STEAMSPY_HINT}` : 'Метрика по SteamSpy отсутствует'}
             >
               {price}
@@ -182,9 +223,9 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
         </div>
 
         {monitored && (
-          <div className="mt-1 flex items-center gap-1.5 border-t border-surface-800 pt-1.5 text-[10px] font-medium text-success-400">
+          <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-success-400">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-success-400" />
-            Monitoring active
+            Мониторинг включён
           </div>
         )}
       </div>
@@ -204,7 +245,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
             }
           }}
           title={monitored ? 'Отключить мониторинг' : 'Включить мониторинг'}
-          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
+          className={`absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
             monitored ? 'hud-icon-active bg-success-500/90 text-surface-950' : 'bg-surface-950/70 text-slate-300 hover:text-success-300'
           }`}
         >
