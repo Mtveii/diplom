@@ -39,7 +39,7 @@ export default function HeatmapChart({ data }: HeatmapChartProps) {
   return (
     <div className="card card-hud p-5 w-full">
       <div className="card-header-hud mb-4 flex-wrap">
-        <h3 className="card-header-hud__title">Heatmap активности (когда пользователи в сети)</h3>
+        <h3 className="card-header-hud__title">Heatmap активности (онлайн и новые аккаунты)</h3>
         <div className="card-header-hud__subtitle flex items-center gap-1.5 text-[10px]">
           <span className="rounded px-1.5 py-0.5 bg-surface-800 text-slate-400">0</span>
           <span className="rounded px-1.5 py-0.5 bg-blue-950 text-blue-300">25%</span>

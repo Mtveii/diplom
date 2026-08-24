@@ -27,7 +27,7 @@ const timeFilters: { key: TimeFilterKey; label: string; apiPeriod: 'day' | 'week
 
 export default function DashboardPage() {
   const { summary, loading, reload: reloadSummary } = useDashboard()
-  const { activity, heatmap, gameTrends, setPeriod, loading: chartsLoading, reload: reloadCharts } = useMonitoringCharts()
+  const { activity, registrations, heatmap, gameTrends, setPeriod, loading: chartsLoading, reload: reloadCharts } = useMonitoringCharts()
   const { users: onlineUsers } = useOnlineUsers()
 
   const onlineTopGames = useMemo(() => gameTrends.slice(0, 5), [gameTrends])
@@ -172,8 +172,8 @@ export default function DashboardPage() {
       <div className="card card-hud p-4 sm:p-6">
         <div className="card-header-hud mb-4 flex-wrap items-center justify-between">
           <div>
-            <h3 className="card-header-hud__title text-sm">Portfolio Performance / Динамика онлайна</h3>
-            <div className="card-header-hud__subtitle">Сравнение активности участников за выбранный период</div>
+            <h3 className="card-header-hud__title text-sm">Portfolio Performance / Динамика активности</h3>
+            <div className="card-header-hud__subtitle">Онлайн и новые аккаунты за выбранный период</div>
           </div>
           <div className="flex items-center gap-2">
             {timeFilters.map((filter) => (
@@ -192,7 +192,12 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="h-72 w-full">
-          <Chart data={activity.map((p) => ({ timestamp: p.timestamp, value: p.onlineCount }))} label="Онлайн" color="#60a5fa" />
+          <Chart
+            data={activity}
+            label="Онлайн"
+            color="#60a5fa"
+            secondary={{ data: registrations, label: 'Новые аккаунты', color: '#f59e0b' }}
+          />
         </div>
       </div>
 
