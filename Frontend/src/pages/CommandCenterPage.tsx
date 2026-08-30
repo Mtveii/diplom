@@ -1,9 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { UsersGlobe } from '../components/UsersGlobe'
+import { alertsApi } from '@/services/api/alerts.api'
+import { monitoringApi } from '@/services/api/monitoring.api'
+import { usersApi } from '@/services/api/users.api'
+import type { AlertHistoryDto } from '@/types/alert'
+
+interface PersonnelStats {
+  total: number
+  online: number
+  banned: number
+  elevatedRoles: number
+  playersToday: number
+  networkStability: number
+}
+
+interface BarItem {
+  day: string
+  orange: number
+  cyan: number
+  peak?: boolean
+}
+
+function formatNumber(value: number): string {
+  return value.toLocaleString('ru-RU')
+}
 
 export default function CommandCenterPage() {
   const [timeStr, setTimeStr] = useState('15:21:03')
   const [dateStr, setDateStr] = useState('2026.08.18')
+
+  // По умолчанию — 0, как требует ТЗ (если БД пустая или не отвечает — останется 0)
+  const [stats, setStats] = useState<PersonnelStats>({
+    total: 0,
+    online: 0,
+    banned: 0,
+    elevatedRoles: 0,
+    playersToday: 0,
+    networkStability: 0,
+  })
+  const [bars, setBars] = useState<BarItem[]>(
+    Array.from({ length: 11 }, (_, index) => ({
+      day: String(index + 2).padStart(2, '0'),
+      orange: 0,
+      cyan: 0,
+    })),
+  )
+  const [peakValue, setPeakValue] = useState(0)
+  const [stream, setStream] = useState<AlertHistoryDto[]>([])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -19,6 +62,105 @@ export default function CommandCenterPage() {
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      // Параллельно парсим БД, каждая ветка отдельно обрабатывает ошибку -> 0
+      const summaryPromise = monitoringApi.summary().catch(() => null)
+      const usersPromise = usersApi.getUsers().catch(() => [] as never)
+      const activityPromise = monitoringApi.activity('week').catch(() => [])
+      const historyPromise = alertsApi.getHistory(8).catch(() => [] as AlertHistoryDto[])
+
+      const [summaryResult, usersResult, activityResult, historyResult] = await Promise.all([
+        summaryPromise,
+        usersPromise,
+        activityPromise,
+        historyPromise,
+      ])
+
+      if (cancelled) return
+
+      // Если БД не отвечает — все остаются 0 (защита через catch выше)
+      const users = Array.isArray(usersResult) ? usersResult : []
+      const total = summaryResult?.totalMembers ?? (users.length || 0)
+      const online = summaryResult?.onlineNow ?? 0
+      const banned = users.filter((user) => user.isBanned).length
+      const elevatedRoles = users.filter((user) => user.role && user.role !== 'User').length
+      const playersToday = summaryResult?.playersToday ?? 0
+      const networkStability = summaryResult?.networkStabilityPercent ?? (total > 0 ? (online / total) * 100 : 0)
+
+      setStats({
+        total,
+        online,
+        banned,
+        elevatedRoles,
+        playersToday,
+        networkStability,
+      })
+
+      // Динамика активности: берём последние 11 дней, оранжевый = онлайн, бирюзовый = новые аккаунты
+      const now = new Date()
+      const days: BarItem[] = []
+      let peak = 0
+      for (let index = 10; index >= 0; index -= 1) {
+        const date = new Date(now)
+        date.setDate(now.getDate() - index)
+        const dayKey = date.toISOString().slice(0, 10)
+        const label = String(date.getDate()).padStart(2, '0')
+
+        const activityForDay = (Array.isArray(activityResult) ? activityResult : []).filter(
+          (point) => point.timestamp.slice(0, 10) === dayKey,
+        )
+        const onlineForDay = activityForDay.length > 0 ? Math.max(...activityForDay.map((point) => point.onlineCount)) : 0
+        const registrationsForDay = users.filter((user) => user.createdAt.slice(0, 10) === dayKey).length
+
+        if (onlineForDay > peak) peak = onlineForDay
+        if (registrationsForDay > peak) peak = registrationsForDay
+
+        days.push({ day: label, orange: onlineForDay, cyan: registrationsForDay })
+      }
+      // Помечаем пиковый столбец
+      const maxValue = peak
+      const withPeak = days.map((item) => ({
+        ...item,
+        peak: maxValue > 0 && (item.orange === maxValue || item.cyan === maxValue),
+      }))
+      setBars(withPeak)
+      setPeakValue(maxValue)
+      setStream(Array.isArray(historyResult) ? historyResult : [])
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const rolePercent = useMemo(() => (stats.total > 0 ? (stats.elevatedRoles / stats.total) * 100 : 0), [stats.elevatedRoles, stats.total])
+  const sessionPercent = useMemo(
+    () => (stats.total > 0 ? Math.min(100, (stats.playersToday / Math.max(1, stats.total)) * 100) : 0),
+    [stats.playersToday, stats.total],
+  )
+  const readinessPercent = useMemo(() => {
+    if (stats.total === 0) return 0
+    if (Number.isFinite(stats.networkStability) && stats.networkStability > 0) return Math.min(100, stats.networkStability)
+    return (stats.online / stats.total) * 100
+  }, [stats.networkStability, stats.online, stats.total])
+
+  const offlineCount = Math.max(0, stats.total - stats.online)
+  const groupA = stats.online
+  const groupB = Math.max(0, offlineCount - stats.banned)
+  const anomalies = stats.banned
+
+  // Кольца: считаем dashoffset пропорционально заполнению (201 = длина окружности при r=32)
+  const ring1Total = Math.max(1, stats.total)
+  const ring1Fill = stats.total > 0 ? stats.online / ring1Total : 0
+  const ring1Offset = 201 * (1 - ring1Fill)
+  const ring2Total = Math.max(1, stats.playersToday || 1)
+  const ring2Fill = stats.playersToday > 0 ? stats.online / ring2Total : 0
+  const ring2Offset = 201 * (1 - ring2Fill)
 
   return (
     <div className="relative flex h-[calc(100vh-5rem)] w-full flex-col overflow-hidden bg-[#070b14] p-3 text-slate-100 select-none">
@@ -55,11 +197,9 @@ export default function CommandCenterPage() {
 
       {/* Main Grid Layout (Left Panel, Center Globe, Right Panel) */}
       <div className="mt-3 grid flex-1 grid-cols-12 gap-3 min-h-0">
-        
         {/* Left Column (Stats & Distribution) */}
         <div className="col-span-3 flex flex-col gap-3 min-h-0">
-          
-          {/* Panel 1: Personnel Statistics */}
+          {/* Panel 1: Personnel Statistics — мониторинг БД */}
           <div className="relative rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg">
             <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
             <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
@@ -77,11 +217,11 @@ export default function CommandCenterPage() {
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs border-b border-blue-950 pb-2.5">
               <div>
                 <div className="text-[10px] text-slate-400">Всего участников</div>
-                <div className="text-lg font-black text-white font-mono tracking-tight">48,304</div>
+                <div className="text-lg font-black text-white font-mono tracking-tight">{formatNumber(stats.total)}</div>
               </div>
               <div>
                 <div className="text-[10px] text-slate-400">Активных в сети</div>
-                <div className="text-lg font-black text-success-400 font-mono tracking-tight">43,855</div>
+                <div className="text-lg font-black text-success-400 font-mono tracking-tight">{formatNumber(stats.online)}</div>
               </div>
             </div>
 
@@ -89,45 +229,43 @@ export default function CommandCenterPage() {
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-slate-300">Ранги и роли</span>
-                  <span className="font-mono text-primary-400">89.5%</span>
+                  <span className="font-mono text-primary-400">{rolePercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
-                  <div className="h-full bg-gradient-to-r from-primary-600 to-primary-400 rounded-full" style={{ width: '89.5%' }} />
+                  <div className="h-full bg-gradient-to-r from-primary-600 to-primary-400 rounded-full" style={{ width: `${rolePercent}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-slate-300">Сессии Steam</span>
-                  <span className="font-mono text-success-400">76.2%</span>
+                  <span className="font-mono text-success-400">{sessionPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
-                  <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: '76.2%' }} />
+                  <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: `${sessionPercent}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-slate-300">Готовность пользователей</span>
-                  <span className="font-mono text-amber-400">94.8%</span>
+                  <span className="font-mono text-amber-400">{readinessPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
-                  <div className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full" style={{ width: '94.8%' }} />
+                  <div className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full" style={{ width: `${readinessPercent}%` }} />
                 </div>
               </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-blue-950/60 pt-2">
-              <span>0004</span>
-              <span>15998</span>
-              <span>31997</span>
-              <span>47996</span>
-              <span>63994</span>
-              <span>79993</span>
+              <span>{formatNumber(Math.floor(stats.total * 0.08))}</span>
+              <span>{formatNumber(Math.floor(stats.total * 0.33))}</span>
+              <span>{formatNumber(Math.floor(stats.total * 0.66))}</span>
+              <span>{formatNumber(stats.total)}</span>
             </div>
           </div>
 
-          {/* Panel 2: Data Distribution (Donut / Circular Meters) */}
+          {/* Panel 2: Data Distribution — мониторинг БД */}
           <div className="relative flex-1 rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg flex flex-col justify-between">
             <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
             <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
@@ -142,15 +280,25 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 items-center">
-              {/* Ring 1 */}
+              {/* Ring 1 — всего пользователей */}
               <div className="flex flex-col items-center">
                 <div className="relative h-20 w-20 flex items-center justify-center">
                   <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="32" fill="none" stroke="#1e3a8a" strokeWidth="6" />
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#34d399" strokeWidth="6" strokeDasharray="201" strokeDashoffset="40" strokeLinecap="round" />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="32"
+                      fill="none"
+                      stroke="#34d399"
+                      strokeWidth="6"
+                      strokeDasharray="201"
+                      strokeDashoffset={ring1Offset}
+                      strokeLinecap="round"
+                    />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xs font-black text-white">43,855</span>
+                    <span className="text-xs font-black text-white">{formatNumber(stats.total)}</span>
                     <span className="text-[9px] text-slate-400">Всего</span>
                   </div>
                 </div>
@@ -159,31 +307,41 @@ export default function CommandCenterPage() {
               {/* Stats right of ring 1 */}
               <div className="flex flex-col gap-1.5 text-[11px]">
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Группа A</span>
-                  <span className="font-mono font-bold text-white">25,635</span>
+                  <span className="text-slate-400">Онлайн</span>
+                  <span className="font-mono font-bold text-white">{formatNumber(groupA)}</span>
                 </div>
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Группа Б</span>
-                  <span className="font-mono font-bold text-white">15,740</span>
+                  <span className="text-slate-400">Оффлайн</span>
+                  <span className="font-mono font-bold text-white">{formatNumber(groupB)}</span>
                 </div>
                 <div className="flex justify-between pb-0.5">
-                  <span className="text-slate-400">Аномалии</span>
-                  <span className="font-mono font-bold text-amber-400">890</span>
+                  <span className="text-slate-400">Забанены</span>
+                  <span className="font-mono font-bold text-amber-400">{formatNumber(anomalies)}</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 items-center border-t border-blue-950 pt-2 mt-2">
-              {/* Ring 2 */}
+              {/* Ring 2 — сессии */}
               <div className="flex flex-col items-center">
                 <div className="relative h-16 w-16 flex items-center justify-center">
                   <svg className="h-16 w-16 -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="32" fill="none" stroke="#1e3a8a" strokeWidth="6" />
-                    <circle cx="40" cy="40" r="32" fill="none" stroke="#60a5fa" strokeWidth="6" strokeDasharray="201" strokeDashoffset="90" strokeLinecap="round" />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="32"
+                      fill="none"
+                      stroke="#60a5fa"
+                      strokeWidth="6"
+                      strokeDasharray="201"
+                      strokeDashoffset={ring2Offset}
+                      strokeLinecap="round"
+                    />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xs font-black text-white">19,740</span>
-                    <span className="text-[9px] text-slate-400">Актив</span>
+                    <span className="text-xs font-black text-white">{formatNumber(stats.playersToday)}</span>
+                    <span className="text-[9px] text-slate-400">Сессий</span>
                   </div>
                 </div>
               </div>
@@ -191,12 +349,12 @@ export default function CommandCenterPage() {
               {/* Stats right of ring 2 */}
               <div className="flex flex-col gap-1.5 text-[11px]">
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Узел 1</span>
-                  <span className="font-mono font-bold text-white">11,483</span>
+                  <span className="text-slate-400">Сегодня</span>
+                  <span className="font-mono font-bold text-white">{formatNumber(stats.playersToday)}</span>
                 </div>
                 <div className="flex justify-between pb-0.5">
-                  <span className="text-slate-400">Узел 2</span>
-                  <span className="font-mono font-bold text-white">2,062</span>
+                  <span className="text-slate-400">Пик онлайн</span>
+                  <span className="font-mono font-bold text-white">{formatNumber(stats.online)}</span>
                 </div>
               </div>
             </div>
@@ -206,19 +364,16 @@ export default function CommandCenterPage() {
         {/* Center Column: 3D Globe Visualization with Floating Tooltips */}
         <div className="col-span-6 relative rounded-xl border border-blue-900/60 bg-[#040812] overflow-hidden flex flex-col items-center justify-center p-4">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
-          
+
           {/* 3D Interactive Globe via react-globe.gl & SignalR */}
           <div className="absolute inset-0 z-0">
             <UsersGlobe />
           </div>
-
-
         </div>
 
         {/* Right Column (Charts & Flight Table) */}
         <div className="col-span-3 flex flex-col gap-3 min-h-0">
-          
-          {/* Panel 3: Flight/Activity Distribution Bar Chart */}
+          {/* Panel 3: Flight/Activity Distribution Bar Chart — мониторинг БД */}
           <div className="relative rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg">
             <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
             <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
@@ -230,42 +385,39 @@ export default function CommandCenterPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-warning-400" />
                 Динамика активности
               </h3>
-              <span className="text-[10px] text-slate-400">Пик за день: <strong className="text-white">2,195</strong></span>
+              <span className="text-[10px] text-slate-400">
+                Пик за 11 дней: <strong className="text-white">{formatNumber(peakValue)}</strong>
+              </span>
             </div>
 
             <div className="flex items-center gap-4 text-[10px] text-slate-400 mb-2">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-500" /> Игроки</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success-400" /> Сессии</span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-orange-500" /> Онлайн
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-success-400" /> Новые аккаунты
+              </span>
             </div>
 
-            {/* Simulated Dual-Color Bar Chart */}
+            {/* Bar Chart — данные из БД */}
             <div className="h-28 w-full flex items-end justify-between gap-1 pt-4 border-b border-blue-950">
-              {[
-                { day: '02', orange: 40, cyan: 20 },
-                { day: '03', orange: 60, cyan: 40 },
-                { day: '04', orange: 30, cyan: 50 },
-                { day: '05', orange: 70, cyan: 30 },
-                { day: '06', orange: 50, cyan: 60 },
-                { day: '07', orange: 85, cyan: 45 },
-                { day: '08', orange: 40, cyan: 75, peak: true },
-                { day: '09', orange: 95, cyan: 55 },
-                { day: '10', orange: 65, cyan: 40 },
-                { day: '11', orange: 50, cyan: 30 },
-                { day: '12', orange: 40, cyan: 20 },
-              ].map((item) => (
-                <div key={item.day} className="flex flex-col items-center gap-1 flex-1 h-full justify-end">
-                  {item.peak && <span className="text-[9px] font-bold text-orange-400">2195</span>}
-                  <div className="w-full flex items-end justify-center gap-0.5 h-20">
-                    <div className="w-2 bg-orange-500 rounded-t" style={{ height: `${item.orange}%` }} />
-                    <div className="w-2 bg-success-400 rounded-t" style={{ height: `${item.cyan}%` }} />
+              {bars.map((item) => {
+                const max = Math.max(1, peakValue)
+                return (
+                  <div key={item.day} className="flex flex-col items-center gap-1 flex-1 h-full justify-end">
+                    {item.peak && max > 0 && <span className="text-[9px] font-bold text-orange-400">{max}</span>}
+                    <div className="w-full flex items-end justify-center gap-0.5 h-20">
+                      <div className="w-2 bg-orange-500 rounded-t" style={{ height: `${(item.orange / max) * 100}%` }} />
+                      <div className="w-2 bg-success-400 rounded-t" style={{ height: `${(item.cyan / max) * 100}%` }} />
+                    </div>
+                    <span className="text-[9px] text-slate-500">{item.day}</span>
                   </div>
-                  <span className="text-[9px] text-slate-500">{item.day}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
-          {/* Panel 4: Detailed Flight / Activity Stream Table */}
+          {/* Panel 4: Detailed Flight / Activity Stream Table — мониторинг БД */}
           <div className="relative flex-1 rounded-xl border border-blue-900/60 bg-blue-950/20 p-3 backdrop-blur-md shadow-lg flex flex-col min-h-0">
             <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
             <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
@@ -287,34 +439,34 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="mt-1 flex-1 overflow-y-auto pr-1 flex flex-col gap-1 text-[11px]">
-              {[
-                { time: '09.03', code: 'SRV-01', route: 'Рейд / Сервер Alpha', qty: 1 },
-                { time: '09.04', code: 'SRV-02', route: 'Матч / Сервер Beta', qty: 1 },
-                { time: '09.04', code: 'SRV-03', route: 'Турнир / Сервер Gamma', qty: 2 },
-                { time: '09.04', code: 'SRV-04', route: 'Тренировка / Сервер Delta', qty: 1 },
-                { time: '09.04', code: 'SRV-05', route: 'Событие / Сервер Omega', qty: 1 },
-                { time: '09.04', code: 'SRV-01', route: 'Рейд / Сервер Alpha', qty: 2 },
-                // { time: '09.05', code: 'SRV-02', route: 'Матч / Сервер Beta', qty: 3 },
-                { time: '09.05', code: 'SRV-03', route: 'Турнир / Сервер Gamma', qty: 1 },
-                { time: '09.05', code: 'SRV-04', route: 'Тренировка / Сервер Delta', qty: 1 },
-                { time: '09.05', code: 'SRV-05', route: 'Событие / Сервер Omega', qty: 1 },
-              ].map((row, idx) => (
-                <div key={idx} className="grid grid-cols-12 items-center rounded px-1 py-1 bg-blue-950/30 hover:bg-blue-900/40 transition-colors font-mono text-[10px]">
-                  <span className="col-span-3 text-slate-400">{row.time}</span>
-                  <span className="col-span-3 text-primary-300 font-bold">{row.code}</span>
-                  <span className="col-span-5 text-slate-200 truncate">{row.route}</span>
-                  <span className="col-span-1 text-right text-success-400 font-bold">{row.qty}</span>
-                </div>
-              ))}
+              {stream.length === 0 ? (
+                <div className="py-6 text-center text-[11px] text-slate-500">Нет данных — БД пуста или недоступна (0)</div>
+              ) : (
+                stream.map((row) => {
+                  const date = new Date(row.triggeredAt)
+                  const time = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`
+                  const code = row.ruleName.slice(0, 6).toUpperCase() || 'ALERT'
+                  return (
+                    <div
+                      key={row.id}
+                      className="grid grid-cols-12 items-center rounded px-1 py-1 bg-blue-950/30 hover:bg-blue-900/40 transition-colors font-mono text-[10px]"
+                    >
+                      <span className="col-span-3 text-slate-400">{time}</span>
+                      <span className="col-span-3 text-primary-300 font-bold">{code}</span>
+                      <span className="col-span-5 text-slate-200 truncate" title={row.message}>
+                        {row.message || '—'}
+                      </span>
+                      <span className="col-span-1 text-right font-bold text-success-400">{row.isRead ? 0 : 1}</span>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
-
         </div>
-
       </div>
 
       {/* Footer Branding */}
-
     </div>
   )
 }
