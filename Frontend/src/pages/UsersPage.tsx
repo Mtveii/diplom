@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usersApi } from '@/services/api/users.api'
+import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from '@/store/toastStore'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUserDto } from '@/types/auth'
@@ -16,20 +17,21 @@ export default function UsersPage() {
   const [users, setUsers] = useState<AdminUserDto[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 350)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setUsers(await usersApi.getUsers({ search: search || undefined }))
+      setUsers(await usersApi.getUsers({ search: debouncedSearch || undefined }))
     } catch (err) {
       console.warn('[UsersPage] Не удалось загрузить пользователей', err)
       setUsers([])
     } finally {
       setLoading(false)
     }
-  }, [search])
+  }, [debouncedSearch])
 
   useEffect(() => {
     void reload()

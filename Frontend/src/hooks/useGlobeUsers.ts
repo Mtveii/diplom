@@ -59,11 +59,12 @@ export function useGlobeUsers() {
       .configureLogging(signalR.LogLevel.Warning)
       .build()
 
-    conn.on('UsersUpdated', (points: GeoPoint[]) => {
+    const usersHandler = (points: GeoPoint[]) => {
       if (mounted && Array.isArray(points)) {
         setUsers(points)
       }
-    })
+    }
+    conn.on('UsersUpdated', usersHandler)
 
     conn.start().catch((err: unknown) => {
       console.warn('[useGlobeUsers] SignalR /hubs/globe не подключился — работаю по REST-опросу', err)
@@ -73,6 +74,7 @@ export function useGlobeUsers() {
     return () => {
       mounted = false
       window.clearInterval(restTimer)
+      conn.off('UsersUpdated', usersHandler)
       void conn.stop()
     }
   }, [])

@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { authApi } from '@/services/api/auth.api'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 
 export default function ProfilePage() {
   const user = useAuthStore((state) => state.user)
+  const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -76,11 +79,17 @@ export default function ProfilePage() {
           <h3 className="card-header-hud__title">Сессия</h3>
         </div>
         <p className="text-xs text-slate-400 mb-4">
-          Авторизация выполняется на отдельном сайте; здесь используется переданный JWT-токен Slush API.
+          Токен хранится в localStorage. При выходе сессия завершается на устройстве и на сервере.
         </p>
         <div className="flex items-center gap-3">
           <span className="flex h-2 w-2 rounded-full bg-success-400 animate-pulse" />
           <span className="text-xs text-success-400 font-medium">Сессия активна</span>
+          <button
+            onClick={() => void authApi.logout().finally(() => navigate('/login', { replace: true }))}
+            className="btn-danger ml-auto h-8 px-3 text-xs"
+          >
+            Выйти из аккаунта
+          </button>
         </div>
       </div>
     </div>

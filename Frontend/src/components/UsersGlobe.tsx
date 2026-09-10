@@ -23,8 +23,8 @@ export function UsersGlobe() {
   return (
     <div className="relative h-full w-full flex items-center justify-center overflow-hidden">
       <Globe
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+        globeImageUrl="https://unpkg.com/three-globe@2.38.0/example/img/earth-night.jpg"
+        bumpImageUrl="https://unpkg.com/three-globe@2.38.0/example/img/earth-topology.png"
         backgroundColor="rgba(0,0,0,0)"
         pointsData={points}
         pointLat="lat"

@@ -34,8 +34,8 @@ export function useAlerts() {
       setHistory((prev) => [alert, ...prev].slice(0, 100))
       setUnreadCount((prev) => prev + 1)
     }
-    onAlertTriggered(handler)
-    return () => onAlertTriggered(() => undefined)
+    const off = onAlertTriggered(handler)
+    return off
   }, [])
 
   const markAsRead = useCallback(async (id: string) => {

@@ -31,6 +31,7 @@ function buildGrid(period: Period): number[] {
 function countInBucket(isoDates: string[], start: number, end: number): number {
   return isoDates.filter((iso) => {
     const time = new Date(iso).getTime()
+    if (Number.isNaN(time)) return false
     return time >= start && time < end
   }).length
 }
@@ -41,7 +42,7 @@ function buildOnlineSeries(points: ActivityPointDto[], period: Period): ChartPoi
   return buildGrid(period).map((start) => {
     const samples = points
       .map((point) => ({ time: new Date(point.timestamp).getTime(), online: point.onlineCount }))
-      .filter((sample) => sample.time >= start && sample.time < start + size)
+      .filter((sample) => !Number.isNaN(sample.time) && sample.time >= start && sample.time < start + size)
       .map((sample) => sample.online)
     return { timestamp: new Date(start).toISOString(), value: samples.length ? Math.max(...samples) : 0 }
   })

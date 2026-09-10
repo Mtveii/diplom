@@ -16,7 +16,11 @@ function loadSet(key: string): Set<string> {
 }
 
 function saveSet(key: string, set: Set<string>) {
-  localStorage.setItem(key, JSON.stringify([...set]))
+  try {
+    localStorage.setItem(key, JSON.stringify([...set]))
+  } catch (err) {
+    console.warn('[useWatchlist] localStorage переполнен', err)
+  }
 }
 
 export function useWatchlist() {

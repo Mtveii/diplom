@@ -1,5 +1,4 @@
-import axios from 'axios'
-import { API_BASE_URL } from './apiBase'
+import { httpClient } from './httpClient'
 import { useAuthStore } from '@/store/authStore'
 import type { AuthUserProfile } from '@/types/auth'
 
@@ -32,7 +31,7 @@ function extractRoleFromJwt(token: string): string {
 
 export const authApi = {
   login: async (loginOrEmail: string, password: string): Promise<string> => {
-    const response = await axios.post<SlushLoginResponse>(`${API_BASE_URL}/api/Auth/login`, {
+    const response = await httpClient.post<SlushLoginResponse>(`/Auth/login`, {
       loginOrEmail,
       password,
       rememberMe: true,
@@ -40,11 +39,18 @@ export const authApi = {
     return response.data.accessToken
   },
 
+  logout: async (): Promise<void> => {
+    try {
+      await httpClient.post('/Auth/logout')
+    } catch {
+      // logout на бекенде опционален — локально всё равно чистим
+    }
+    useAuthStore.getState().logout()
+  },
+
   me: async (): Promise<AuthUserProfile> => {
     const token = useAuthStore.getState().accessToken ?? ''
-    const profile = await axios.get<SlushProfileResponse>(`${API_BASE_URL}/api/Profile/me`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    }).then((r) => r.data)
+    const profile = await httpClient.get<SlushProfileResponse>(`/Profile/me`).then((r) => r.data)
 
     return {
       userId: profile.userId,

@@ -27,11 +27,12 @@ export function useOnlineStatuses() {
       setOnline((prev) => ({ ...prev, [status.steamId64]: status }))
     }
 
-    onOnlineStatusChanged(handler)
+    const off = onOnlineStatusChanged(handler)
     void connect()
 
     return () => {
       mounted = false
+      off()
       void stopSignalR()
     }
   }, [])

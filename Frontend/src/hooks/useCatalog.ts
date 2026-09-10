@@ -17,9 +17,9 @@ export function useCatalog() {
     try {
       const data = await catalogApi.unifiedPage(1)
       setGames(data.items)
-      setPage(data.page)
-      setTotalPages(data.totalPages)
-      setTotalResults(data.totalResults)
+      setPage(Math.max(1, data.page))
+      setTotalPages(Math.max(1, data.totalPages))
+      setTotalResults(Math.max(0, data.totalResults))
     } catch (err) {
       console.warn('[useCatalog] Не удалось загрузить каталог — показываю пустой список', err)
       setGames([])
@@ -41,10 +41,13 @@ export function useCatalog() {
         Array.from({ length: to - from + 1 }, (_, i) => catalogApi.unifiedPage(from + i)),
       )
       const last = pages[pages.length - 1]
+      if (!last) {
+        return
+      }
       setGames((prev) => [...prev, ...pages.flatMap((p) => p.items)])
-      setPage(last.page)
-      setTotalPages(last.totalPages)
-      setTotalResults(last.totalResults)
+      setPage(Math.max(1, last.page))
+      setTotalPages(Math.max(1, last.totalPages))
+      setTotalResults(Math.max(0, last.totalResults))
     } catch (err) {
       console.warn('[useCatalog] Не удалось догрузить каталог', err)
     } finally {

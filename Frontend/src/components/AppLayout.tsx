@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { alertsApi } from '@/services/api/alerts.api'
-import { onReconnected, onReconnecting } from '@/services/signalr'
+import { offReconnected, offReconnecting, onReconnected, onReconnecting } from '@/services/signalr'
 import Breadcrumbs from './Breadcrumbs'
 import NotificationBell from './NotificationBell'
 import UserMenu from './UserMenu'
@@ -106,8 +106,8 @@ function useConnectionStatus(): ConnectionStatus {
     return () => {
       window.removeEventListener('offline', goOffline)
       window.removeEventListener('online', goOnline)
-      onReconnecting(() => undefined)
-      onReconnected(() => undefined)
+      offReconnecting()
+      offReconnected()
     }
   }, [])
 

@@ -3,6 +3,7 @@ import Modal from '@/components/Modal'
 import Spinner from '@/components/Spinner'
 import { notificationsApi } from '@/services/api/notifications.api'
 import { usersApi } from '@/services/api/users.api'
+import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUserDto, UserRole } from '@/types/auth'
@@ -45,8 +46,10 @@ const rolePermissions: Array<{ role: UserRole; name: string; description: string
 ]
 
 export default function SettingsPage() {
-  const isSuperAdmin = true
-  const isAdmin = true
+  const user = useAuthStore((s) => s.user)
+  const role = user?.role ?? 'User'
+  const isSuperAdmin = role === 'SuperAdmin'
+  const isAdmin = ['SuperAdmin', 'Moderator', 'Analyst'].includes(role) || isSuperAdmin
 
   const [tab, setTab] = useState<SettingsTab>('channels')
   const [channels, setChannels] = useState<NotificationChannelSettingDto[]>([])
@@ -113,16 +116,25 @@ export default function SettingsPage() {
 
   const handleSaveChannelConfig = async () => {
     if (!editingChannel) return
+    // Базовая валидация перед отправкой секретов
+    if (editingChannel.channel === 'Discord' && channelForm.webhookUrl && !channelForm.webhookUrl.startsWith('https://')) {
+      toast.warning('Webhook должен начинаться с https://')
+      return
+    }
+    if (editingChannel.channel === 'Telegram' && channelForm.botToken && channelForm.botToken.includes(' ')) {
+      toast.warning('Bot Token не должен содержать пробелы')
+      return
+    }
     const payload: Record<string, string> = {}
     if (editingChannel.channel === 'Discord') {
-      payload.webhookUrl = channelForm.webhookUrl
+      if (channelForm.webhookUrl) payload.webhookUrl = channelForm.webhookUrl.trim()
     } else if (editingChannel.channel === 'Telegram') {
-      payload.botToken = channelForm.botToken
-      payload.chatId = channelForm.chatId
+      if (channelForm.botToken) payload.botToken = channelForm.botToken.trim()
+      if (channelForm.chatId) payload.chatId = channelForm.chatId.trim()
     } else if (editingChannel.channel === 'Email') {
-      payload.recipients = channelForm.recipients
+      if (channelForm.recipients) payload.recipients = channelForm.recipients
     }
-    const configJson = JSON.stringify(payload)
+    const configJson = Object.keys(payload).length ? JSON.stringify(payload) : null
     await updateChannelStatus(editingChannel.channel, editingChannel.isEnabled, configJson)
     setEditingChannel(null)
   }

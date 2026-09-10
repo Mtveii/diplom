@@ -44,16 +44,22 @@ export async function stopSignalR(): Promise<void> {
   }
 }
 
-export function onOnlineStatusChanged(handler: (status: OnlineStatusDto) => void): void {
-  getConnection().on('OnlineStatusChanged', handler)
+export function onOnlineStatusChanged(handler: (status: OnlineStatusDto) => void): () => void {
+  const hub = getConnection()
+  hub.on('OnlineStatusChanged', handler)
+  return () => hub.off('OnlineStatusChanged', handler)
 }
 
-export function onAlertTriggered(handler: (alert: AlertHistoryDto) => void): void {
-  getConnection().on('AlertTriggered', handler)
+export function onAlertTriggered(handler: (alert: AlertHistoryDto) => void): () => void {
+  const hub = getConnection()
+  hub.on('AlertTriggered', handler)
+  return () => hub.off('AlertTriggered', handler)
 }
 
-export function onUsersUpdated(handler: (points: unknown) => void): void {
-  getConnection().on('UsersUpdated', handler)
+export function onUsersUpdated(handler: (points: unknown) => void): () => void {
+  const hub = getConnection()
+  hub.on('UsersUpdated', handler)
+  return () => hub.off('UsersUpdated', handler)
 }
 
 export function onReconnecting(handler: () => void): void {
@@ -62,4 +68,12 @@ export function onReconnecting(handler: () => void): void {
 
 export function onReconnected(handler: () => void): void {
   getConnection().onreconnected = handler
+}
+
+export function offReconnecting(): void {
+  getConnection().onreconnecting = () => {}
+}
+
+export function offReconnected(): void {
+  getConnection().onreconnected = () => {}
 }

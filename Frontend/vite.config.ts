@@ -9,6 +9,19 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand', 'axios'],
+          charts: ['recharts'],
+          globe: ['three', 'react-globe.gl', 'three-globe'],
+          signalr: ['@microsoft/signalr'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     host: true,
