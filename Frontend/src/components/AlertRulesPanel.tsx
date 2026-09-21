@@ -2,11 +2,13 @@
 import ConfirmModal from '@/components/ConfirmModal'
 import { alertsApi } from '@/services/api/alerts.api'
 import { notificationsApi } from '@/services/api/notifications.api'
+import { useLocale } from '@/hooks/useLocale'
 import { toast } from '@/store/toastStore'
 import type { AlertCondition, AlertRuleDto, AlertRuleType } from '@/types/alert'
 import type { NotificationChannel } from '@/types/notification'
 
-const ruleTypes: AlertRuleType[] = ['NoLoginFor', 'ReviewDrop', 'DiscountStarted', 'NewsRelease']
+/** NewsRelease в Slush API отсутствует (RuleType только 0–2) — из UI убран. */
+const ruleTypes: AlertRuleType[] = ['NoLoginFor', 'ReviewDrop', 'DiscountStarted']
 const conditions: AlertCondition[] = ['LessThan', 'GreaterThan', 'Equals']
 
 const CHANNELS: NotificationChannel[] = ['Telegram', 'Discord', 'Email', 'InApp']
@@ -18,24 +20,23 @@ const CHANNEL_LABELS: Record<NotificationChannel, string> = {
   InApp: 'InApp',
 }
 
-const RULE_LABELS: Record<AlertRuleType, string> = {
-  NoLoginFor: 'Не заходил',
-  ReviewDrop: 'Отзывы упали',
-  DiscountStarted: 'Скидка началась',
-  NewsRelease: 'Новая новость',
-}
-
-const CONDITION_LABELS: Record<AlertCondition, string> = {
-  LessThan: 'ниже',
-  GreaterThan: 'выше',
-  Equals: 'равно',
-}
-
 interface AlertRulesPanelProps {
-  selectedAppId?: number
+  selectedAppId?: string | number
 }
 
 export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps) {
+  const { t } = useLocale()
+  const ruleLabels: Record<AlertRuleType, string> = {
+    NoLoginFor: t.alerts.ruleNoLogin,
+    ReviewDrop: t.alerts.ruleReviewDrop,
+    DiscountStarted: t.alerts.ruleDiscount,
+    NewsRelease: t.alerts.ruleNews,
+  }
+  const conditionLabels: Record<AlertCondition, string> = {
+    LessThan: t.alerts.condBelow,
+    GreaterThan: t.alerts.condAbove,
+    Equals: t.alerts.condEquals,
+  }
   const [rules, setRules] = useState<AlertRuleDto[]>([])
   const [name, setName] = useState('')
   const [type, setType] = useState<AlertRuleType>('ReviewDrop')
@@ -43,6 +44,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
   const [condition, setCondition] = useState<AlertCondition>('LessThan')
   const [threshold, setThreshold] = useState('')
   const [channels, setChannels] = useState<Set<NotificationChannel>>(new Set(['InApp']))
+  const [ruleChannel, setRuleChannel] = useState<NotificationChannel>('Telegram')
   const [deleteRule, setDeleteRule] = useState<AlertRuleDto | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -80,31 +82,32 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
     try {
       await notificationsApi.updateChannel(channel, enabled, null)
     } catch (err) {
-      toast.error('Не удалось обновить канал', err instanceof Error ? err.message : undefined)
+      toast.error(t.alerts.channelError, err instanceof Error ? err.message : undefined)
     }
   }
 
   const handleCreate = async () => {
-    if (!threshold && type !== 'NewsRelease') {
-      toast.warning('Укажите пороговое значение')
+    if (!threshold) {
+      toast.warning(t.alerts.needThreshold)
       return
     }
     setSaving(true)
     try {
       await alertsApi.createRule({
-        name: name.trim() || RULE_LABELS[type],
+        name: name.trim() || ruleLabels[type],
         type,
         targetId: targetId || null,
         condition,
         thresholdValue: Number(threshold) || 0,
+        channel: ruleChannel,
         isActive: true,
       })
       setName('')
       setThreshold('')
       await reload()
-      toast.success('Правило алерта создано', RULE_LABELS[type])
+      toast.success(t.alerts.created, ruleLabels[type])
     } catch (err) {
-      toast.error('Ошибка', err instanceof Error ? err.message : undefined)
+      toast.error(t.alerts.error, err instanceof Error ? err.message : undefined)
     } finally {
       setSaving(false)
     }
@@ -114,9 +117,9 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
     try {
       await alertsApi.toggleRule(rule.id, !rule.isActive)
       await reload()
-      toast.success(rule.isActive ? 'Правило выключено' : 'Правило включено', rule.name)
+      toast.success(rule.isActive ? t.alerts.disabledToast : t.alerts.enabledToast, rule.name)
     } catch (err) {
-      toast.error('Ошибка', err instanceof Error ? err.message : undefined)
+      toast.error(t.alerts.error, err instanceof Error ? err.message : undefined)
     }
   }
 
@@ -127,11 +130,11 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
     setSaving(true)
     try {
       await alertsApi.deleteRule(deleteRule.id)
-      toast.success('Правило удалено', deleteRule.name)
+      toast.success(t.alerts.deleted, deleteRule.name)
       setDeleteRule(null)
       await reload()
     } catch (err) {
-      toast.error('Ошибка', err instanceof Error ? err.message : undefined)
+      toast.error(t.alerts.error, err instanceof Error ? err.message : undefined)
     } finally {
       setSaving(false)
     }
@@ -141,70 +144,78 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
     try {
       await alertsApi.evaluate()
       await reload()
-      toast.success('Правила оценены', 'Алерты обработаны')
+      toast.success(t.alerts.evaluated, t.alerts.evaluatedDesc)
     } catch (err) {
-      toast.error('Ошибка оценки', err instanceof Error ? err.message : undefined)
+      toast.error(t.alerts.evaluateError, err instanceof Error ? err.message : undefined)
     }
   }
 
   return (
     <section className="card card-hud flex flex-col gap-6 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-bold text-white">Alert Rule Builder</h3>
+        <h3 className="text-base font-bold text-white">{t.alerts.builder}</h3>
         <button
           onClick={() => void handleEvaluate()}
           className="btn-ghost bg-warning-500/10 px-3 py-1.5 text-xs text-warning-400 hover:bg-warning-500/20"
         >
-          Оценить сейчас
+          {t.alerts.evaluateNow}
         </button>
       </div>
 
       <div className="card-hud card-hud--sm rounded-xl border border-primary-500/30 bg-surface-950/40 p-4">
         <div className="flex flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-slate-500">When</span>
+            <span className="font-semibold uppercase tracking-wider text-slate-500">{t.alerts.when}</span>
             <select value={type} onChange={(event) => setType(event.target.value as AlertRuleType)} className="input h-10 bg-surface-950">
-              {ruleTypes.map((t) => (
-                <option key={t} value={t}>
-                  {RULE_LABELS[t]}
+              {ruleTypes.map((ruleType) => (
+                <option key={ruleType} value={ruleType}>
+                  {ruleLabels[ruleType]}
                 </option>
               ))}
             </select>
-            <span className="font-semibold uppercase tracking-wider text-slate-500">Is</span>
+            <span className="font-semibold uppercase tracking-wider text-slate-500">{t.alerts.is}</span>
             <select value={condition} onChange={(event) => setCondition(event.target.value as AlertCondition)} className="input h-10 bg-surface-950">
               {conditions.map((c) => (
                 <option key={c} value={c}>
-                  {CONDITION_LABELS[c]}
+                  {conditionLabels[c]}
                 </option>
               ))}
             </select>
-            {type !== 'NewsRelease' && (
-              <>
-                <span className="font-semibold uppercase tracking-wider text-slate-500">Value</span>
-                <input
-                  value={threshold}
-                  onChange={(event) => setThreshold(event.target.value)}
-                  placeholder={type === 'NoLoginFor' ? 'дней' : type === 'ReviewDrop' ? '%' : '$'}
-                  type="number"
-                  className="input h-10 w-28"
-                />
-              </>
-            )}
+            <span className="font-semibold uppercase tracking-wider text-slate-500">{t.alerts.value}</span>
+            <input
+              value={threshold}
+              onChange={(event) => setThreshold(event.target.value)}
+              placeholder={type === 'NoLoginFor' ? t.alerts.thresholdDays : type === 'ReviewDrop' ? '%' : '$'}
+              type="number"
+              className="input h-10 w-28"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-slate-500">Target</span>
+            <span className="font-semibold uppercase tracking-wider text-slate-500">{t.alerts.target}</span>
             <input
               value={targetId}
               onChange={(event) => setTargetId(event.target.value)}
-              placeholder="AppId (пусто = глобально)"
+              placeholder={t.alerts.targetPlaceholder}
               className="input h-10 w-56"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-slate-500">Then</span>
-            <span className="text-slate-300">Send notification via</span>
+            <span className="font-semibold uppercase tracking-wider text-slate-500">{t.alerts.then}</span>
+            <span className="text-slate-300">{t.alerts.sendVia}</span>
+            <select
+              value={ruleChannel}
+              onChange={(event) => setRuleChannel(event.target.value as NotificationChannel)}
+              className="input h-10 bg-surface-950"
+              title={t.alerts.then}
+            >
+              {CHANNELS.map((channel) => (
+                <option key={channel} value={channel}>
+                  {CHANNEL_LABELS[channel]}
+                </option>
+              ))}
+            </select>
             <div className="flex flex-wrap gap-1.5">
               {CHANNELS.map((channel) => {
                 const enabled = channels.has(channel)
@@ -231,7 +242,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Название правила (необязательно)"
+                placeholder={t.alerts.namePlaceholder}
                 className="input h-10 w-full"
               />
             </div>
@@ -239,17 +250,17 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Save rule
+              {t.alerts.saveRule}
             </button>
           </div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Активные правила</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t.alerts.activeRules}</h4>
         {rules.length === 0 ? (
           <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
-            Правил пока нет — создайте выше
+            {t.alerts.emptyRules}
           </div>
         ) : (
           rules.map((rule) => (
@@ -259,13 +270,14 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${rule.isActive ? 'animate-pulse-dot bg-success-400' : 'bg-slate-600'}`}
-                title={rule.isActive ? 'активно' : 'выключено'}
+                title={rule.isActive ? t.alerts.activeTitle : t.alerts.disabledTitle}
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-slate-100">{rule.name}</div>
                 <div className="text-xs text-slate-500">
-                  {RULE_LABELS[rule.type] ?? `Тип ${rule.type}`} · {rule.targetId ? `App ${rule.targetId}` : 'глобально'} ·{' '}
-                  {CONDITION_LABELS[rule.condition] ?? rule.condition} {rule.thresholdValue}
+                  {ruleLabels[rule.type as AlertRuleType] ?? t.alerts.typeFallback(rule.type)} · {rule.targetId ? `App ${rule.targetId}` : t.alerts.globalTarget} ·{' '}
+                  {conditionLabels[rule.condition as AlertCondition] ?? rule.condition} {rule.thresholdValue}
+                  {rule.channel ? ` · ${CHANNEL_LABELS[rule.channel]}` : ''}
                 </div>
               </div>
               <button
@@ -276,13 +288,13 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
                     : 'border border-success-600/50 bg-success-500/10 text-success-400 hover:bg-success-500/20'
                 }`}
               >
-                {rule.isActive ? 'Выключить' : 'Включить'}
+                {rule.isActive ? t.alerts.disable : t.alerts.enable}
               </button>
               <button
                 onClick={() => setDeleteRule(rule)}
                 className="rounded-lg border border-rose-800/60 px-2.5 py-1 text-xs text-rose-400 transition-colors hover:bg-rose-950/50"
               >
-                Удалить
+                {t.common.delete}
               </button>
             </div>
           ))
@@ -291,9 +303,9 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
 
       <ConfirmModal
         open={deleteRule !== null}
-        title="Удалить правило?"
-        description={deleteRule ? `${deleteRule.name} — это действие нельзя отменить.` : ''}
-        confirmLabel="Удалить"
+        title={t.alerts.deleteTitle}
+        description={deleteRule ? t.alerts.deleteDesc(deleteRule.name) : ''}
+        confirmLabel={t.common.delete}
         loading={saving}
         onConfirm={() => void handleDelete()}
         onClose={() => setDeleteRule(null)}

@@ -1,9 +1,12 @@
+import { useLocale } from '@/hooks/useLocale'
+
 interface ErrorStateProps {
   message: string
   onRetry?: () => void
 }
 
 export default function ErrorState({ message, onRetry }: ErrorStateProps) {
+  const { t } = useLocale()
   return (
     <div className="card flex flex-col items-center gap-4 border-rose-800/60 bg-rose-950/20 py-12">
       <div className="flex h-12 w-12 items-center justify-center rounded-full border border-rose-800 bg-rose-950/60 text-rose-300">
@@ -16,7 +19,7 @@ export default function ErrorState({ message, onRetry }: ErrorStateProps) {
       <div className="text-sm text-rose-200">{message}</div>
       {onRetry && (
         <button onClick={onRetry} className="btn-ghost">
-          Повторить
+          {t.common.retry}
         </button>
       )}
     </div>

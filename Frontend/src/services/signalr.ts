@@ -9,6 +9,7 @@ let activeHandlers = 0
 
 function getConnection(): signalR.HubConnection {
   if (!connection) {
+    // Токен из тихого DEV-входа, без него — анонимно.
     connection = new signalR.HubConnectionBuilder()
       .withUrl(`${API_BASE_URL}/hubs/globe`, {
         accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',

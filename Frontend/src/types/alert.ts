@@ -1,3 +1,5 @@
+import type { NotificationChannel } from './notification'
+
 export type AlertRuleType = string
 
 export type AlertCondition = string
@@ -9,6 +11,7 @@ export interface AlertRuleDto {
   targetId: string | null
   condition: AlertCondition
   thresholdValue: number
+  channel: NotificationChannel | null
   isActive: boolean
   createdAt: string | null
 }

@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
+import { useLocale } from '@/hooks/useLocale'
+import { formatDateTime } from '@/utils/format'
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false)
   const { history, unreadCount, markAsRead, markAllAsRead } = useAlerts()
+  const { t, locale } = useLocale()
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -27,7 +30,7 @@ export default function NotificationBell() {
             ? 'border-primary-500/50 bg-surface-800 text-primary-400'
             : 'border-surface-700 text-slate-400 hover:bg-surface-800 hover:text-slate-200'
         }`}
-        title="Алерты"
+        title={t.bell.title}
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -44,10 +47,10 @@ export default function NotificationBell() {
         <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-1.5rem)] max-h-[80vh] animate-scale-in overflow-y-auto rounded-2xl border border-surface-700/60 bg-surface-900/90 shadow-card backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-surface-700 px-4 py-3">
             <span className="text-sm font-semibold text-white">
-              Алерты
+              {t.bell.title}
               {unreadCount > 0 && (
                 <span className="ml-2 rounded-full bg-primary-600/20 px-2 py-0.5 text-[10px] font-medium text-primary-400">
-                  {unreadCount} новых
+                  {t.bell.newCount(unreadCount)}
                 </span>
               )}
             </span>
@@ -55,13 +58,13 @@ export default function NotificationBell() {
               onClick={() => void markAllAsRead()}
               className="text-xs text-primary-400 transition-colors hover:text-primary-300 hover:underline"
             >
-              Прочитать все
+              {t.bell.markAll}
             </button>
           </div>
           <div className="max-h-96 overflow-y-auto">
             {history.length === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-slate-500">
-                Пока нет алертов — всё спокойно
+                {t.bell.empty}
               </div>
             ) : (
               history.map((alert) => (
@@ -78,12 +81,7 @@ export default function NotificationBell() {
                       {alert.ruleName}
                     </span>
                     <span className="shrink-0 text-[10px] text-slate-500">
-                      {new Date(alert.triggeredAt).toLocaleString('ru-RU', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatDateTime(alert.triggeredAt, locale)}
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-slate-400">{alert.message}</div>
@@ -98,7 +96,7 @@ export default function NotificationBell() {
             }}
             className="block w-full border-t border-surface-700 px-4 py-2.5 text-center text-xs font-medium text-primary-400 transition-colors hover:bg-surface-800"
           >
-            К мониторингу игр
+            {t.bell.toGames}
           </button>
         </div>
       )}

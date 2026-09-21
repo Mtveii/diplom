@@ -1,31 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import AlertRulesPanel from '@/components/AlertRulesPanel'
-import { chartTheme } from '@/styles/chartTheme'
 import CatalogDetailModal from '@/components/CatalogDetailModal'
 import GameCatalogCard from '@/components/GameCatalogCard'
+import GameDetailsExtra from '@/components/GameDetailsExtra'
 import GameMonitorTrendChart from '@/components/GameMonitorTrendChart'
 import Spinner from '@/components/Spinner'
 import StatCard from '@/components/StatCard'
-import { monitoringApi } from '@/services/api/monitoring.api'
-import { steamApi } from '@/services/api/notifications.api'
+import { catalogApi } from '@/services/api/catalog.api'
 import { useAlerts } from '@/hooks/useAlerts'
 import { useCatalog } from '@/hooks/useCatalog'
-import { formatRelativeDate } from '@/utils/format'
-import type { UnifiedGameDto } from '@/types/catalog'
-import type { GameMonitorDto, GameTrendPointDto } from '@/types/monitoring'
-import type { SteamNewsItemDto } from '@/types/steam'
+import { useLocale } from '@/hooks/useLocale'
+import { useAuthStore } from '@/store/authStore'
+import { canManageAlerts } from '@/utils/role'
+import { formatDayMonth, formatNumber } from '@/utils/format'
+import type { GameDetailsDto, UnifiedGameDto } from '@/types/catalog'
 
 const LIST_ROW_HEIGHT = 68
 /* Каталог полностью статичен: фиксированные ширина карточки и число колонок.
@@ -40,11 +30,7 @@ type ViewMode = 'grid' | 'compact' | 'list'
 type SortKey = 'relevance' | 'name' | 'rating' | 'price' | 'owners' | 'release'
 type PageTab = 'catalog' | 'monitoring' | 'alerts'
 
-const TAB_LABELS: Record<PageTab, string> = {
-  catalog: 'Каталог',
-  monitoring: 'Мониторинг',
-  alerts: 'Алерты',
-}
+
 
 interface FilterState {
   genres: string[]
@@ -65,7 +51,7 @@ function CatalogGridSkeleton() {
 
       {/* Полоса табов */}
       <div className="flex gap-1 rounded-xl border border-surface-700 bg-surface-800/40 p-1">
-        {['Каталог', 'Мониторинг', 'Алерты'].map((tab, index) => (
+        {(['catalog', 'monitoring', 'alerts'] as PageTab[]).map((tab, index) => (
           <div
             key={tab}
             className={`h-9 w-28 animate-pulse rounded-lg ${index === 0 ? 'bg-primary-500/60' : 'bg-surface-800/50'}`}
@@ -117,7 +103,13 @@ function CatalogGridSkeleton() {
 
 export default function GameMonitorPage() {
   const { games, loading, loadingMore, reload, loadMore, hasMore } = useCatalog()
+  const { t, locale, compareLocale } = useLocale()
   const navigate = useNavigate()
+  const tabLabels: Record<PageTab, string> = {
+    catalog: t.catalog.tabCatalog,
+    monitoring: t.catalog.tabMonitoring,
+    alerts: t.catalog.tabAlerts,
+  }
 
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<FilterState>({ genres: [], minPrice: 0, onlyMatched: false, platform: '', source: '' })
@@ -125,12 +117,21 @@ export default function GameMonitorPage() {
   const [sort, setSort] = useState<SortKey>('relevance')
   const [tab, setTab] = useState<PageTab>('catalog')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const role = useAuthStore((state) => state.role)
+  /** Правила алертов — только SuperAdmin и Admin (см. ROUTES_ACCESS). */
+  const canShowAlerts = canManageAlerts(role)
+  const visibleTabs = useMemo(
+    () =>
+      (['catalog', 'monitoring', 'alerts'] as PageTab[]).filter(
+        (tabKey) => tabKey !== 'alerts' || canShowAlerts,
+      ),
+    [canShowAlerts],
+  )
 
   const [selectedGame, setSelectedGame] = useState<UnifiedGameDto | null>(null)
 
-  const [monitorAppId, setMonitorAppId] = useState<number | null>(null)
-  const [game, setGame] = useState<GameMonitorDto | null>(null)
-  const [news, setNews] = useState<SteamNewsItemDto[]>([])
+  const [monitorAppId, setMonitorAppId] = useState<string | null>(null)
+  const [details, setDetails] = useState<GameDetailsDto | null>(null)
   const [monitorLoading, setMonitorLoading] = useState(false)
   const alerts = useAlerts()
 
@@ -148,10 +149,10 @@ export default function GameMonitorPage() {
       }
     }
     return Array.from(byDay, ([day, count]) => ({
-      day: new Date(new Date(day).getTime() + offset).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      day: formatDayMonth(new Date(new Date(day).getTime() + offset), locale),
       count,
     }))
-  }, [alerts.history])
+  }, [alerts.history, locale])
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -159,8 +160,8 @@ export default function GameMonitorPage() {
     () =>
       Array.from(
         new Set(games.flatMap((g) => g.genres).filter((g): g is string => Boolean(g))),
-      ).sort((a, b) => a.localeCompare(b, 'ru')),
-    [games],
+      ).sort((a, b) => a.localeCompare(b, compareLocale)),
+    [games, compareLocale],
   )
 
   const maxPrice = useMemo(
@@ -206,7 +207,7 @@ export default function GameMonitorPage() {
     const list = [...filtered]
     switch (sort) {
       case 'name':
-        return list.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+        return list.sort((a, b) => a.name.localeCompare(b.name, compareLocale))
       case 'rating':
         return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
       case 'price':
@@ -218,7 +219,7 @@ export default function GameMonitorPage() {
       default:
         return list
     }
-  }, [filtered, sort])
+  }, [filtered, sort, compareLocale])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -271,17 +272,14 @@ export default function GameMonitorPage() {
     }))
   }, [])
 
-  const loadMonitor = useCallback(async (appId: number) => {
-    setMonitorAppId(appId)
+  const loadMonitor = useCallback(async (id: string) => {
+    setMonitorAppId(id)
     setMonitorLoading(true)
     try {
-      const [gameData, newsData] = await Promise.all([monitoringApi.gameMonitor(appId), steamApi.getNews(appId)])
-      setGame(gameData)
-      setNews(newsData)
+      setDetails(await catalogApi.gameDetails(id))
     } catch (err) {
       console.warn('[GameMonitorPage] Не удалось загрузить данные игры — показываю пустые данные', err)
-      setGame(null)
-      setNews([])
+      setDetails(null)
     } finally {
       setMonitorLoading(false)
     }
@@ -290,30 +288,10 @@ export default function GameMonitorPage() {
   const handleOpen = useCallback(
     (item: UnifiedGameDto) => {
       setSelectedGame(item)
-      if (item.steamAppId != null) {
-        void loadMonitor(item.steamAppId)
-      } else {
-        setMonitorAppId(null)
-        setGame(null)
-        setNews([])
-      }
+      void loadMonitor(item.id)
     },
     [loadMonitor],
   )
-
-  const [trendDays, setTrendDays] = useState(30)
-
-  const formatTrend = (trend: GameTrendPointDto[]) =>
-    trend.map((point) => ({
-      ...point,
-      timestamp: new Date(point.timestamp).toLocaleDateString('ru-RU'),
-      price: point.price != null ? point.price / 100 : null,
-    }))
-
-  const cutTrend = (trend: GameTrendPointDto[]) => {
-    const cutoff = Date.now() - trendDays * 24 * 60 * 60 * 1000
-    return trend.filter((point) => new Date(point.timestamp).getTime() >= cutoff)
-  }
 
   if (loading) {
     return <CatalogGridSkeleton />
@@ -350,15 +328,15 @@ export default function GameMonitorPage() {
             <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-semibold text-slate-100 group-hover:text-white">{item.name}</h3>
               <p className="truncate text-xs text-slate-400">
-                {item.genres[0] ?? 'без жанра'}
-                {item.steamAppId != null ? ` · App ${item.steamAppId}` : ' · метрики: нет данных'}
+                {item.genres[0] ?? t.catalog.noGenre}
+                {item.steamAppId != null ? ` · App ${item.steamAppId}` : t.catalog.noMetricsSuffix}
               </p>
             </div>
             <span
               className="shrink-0 text-sm font-semibold text-white"
-              title={item.steamAppId != null ? 'Цена. По данным SteamSpy, оценка, погрешность ±10%' : 'Метрика по SteamSpy отсутствует'}
+              title={item.steamAppId != null ? t.catalog.priceTitle(t.catalog.steamspyHint) : t.catalog.noSteamspyMetrics}
             >
-              {item.isFree || item.price <= 0 ? 'Бесплатно' : `$${item.price.toFixed(2)}`}
+              {item.isFree || item.price <= 0 ? t.common.free : `$${item.price.toFixed(2)}`}
             </span>
           </button>
         ))}
@@ -370,12 +348,12 @@ export default function GameMonitorPage() {
     <div className="flex h-full min-h-0 flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold leading-tight text-white">Мониторинг игр и алерты</h1>
+          <h1 className="text-[26px] font-bold leading-tight text-white">{t.catalog.title}</h1>
         </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-surface-700 bg-surface-800/40 p-1">
-        {(['catalog', 'monitoring', 'alerts'] as PageTab[]).map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -383,7 +361,7 @@ export default function GameMonitorPage() {
               tab === t ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-100'
             }`}
           >
-            {TAB_LABELS[t]}
+            {tabLabels[t]}
           </button>
         ))}
       </div>
@@ -398,7 +376,7 @@ export default function GameMonitorPage() {
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
           </svg>
-          Фильтры
+          {t.catalog.filters}
           {filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-primary-400" />}
           <svg
             className={`h-4 w-4 text-slate-500 transition-transform ${filtersOpen ? 'rotate-180' : ''}`}
@@ -418,17 +396,17 @@ export default function GameMonitorPage() {
             filtersOpen ? '' : 'hidden lg:flex'
           }`}
         >          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Поиск</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t.catalog.search}</h2>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Название игры..."
+              placeholder={t.catalog.searchPh}
               className="input h-12 w-full px-3"
             />
           </div>
 
           <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Жанры</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t.catalog.genres}</h2>
             <div className="flex max-h-56 flex-col gap-1 overflow-y-auto pr-1">
               {genres.map((g) => (
                 <label key={g} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-300 transition-colors hover:bg-surface-800">
@@ -446,7 +424,7 @@ export default function GameMonitorPage() {
 
           <div>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Минимальная цена: ${filters.minPrice.toFixed(0)}
+              {t.catalog.minPrice(`$${filters.minPrice.toFixed(0)}`)}
             </h2>
             <input
               type="range"
@@ -464,13 +442,13 @@ export default function GameMonitorPage() {
           </div>
 
           <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Платформа</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t.catalog.platform}</h2>
             <select
               value={filters.platform}
               onChange={(event) => setFilters((prev) => ({ ...prev, platform: event.target.value }))}
               className="input w-full bg-surface-950"
             >
-              <option value="">Все платформы</option>
+              <option value="">{t.catalog.allPlatforms}</option>
               {platforms.map((platform) => (
                 <option key={platform} value={platform}>
                   {platform}
@@ -480,13 +458,13 @@ export default function GameMonitorPage() {
           </div>
 
           <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Источник</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t.catalog.source}</h2>
             <select
               value={filters.source}
               onChange={(event) => setFilters((prev) => ({ ...prev, source: event.target.value }))}
               className="input w-full bg-surface-950"
             >
-              <option value="">Все источники</option>
+              <option value="">{t.catalog.allSources}</option>
               {sources.map((source) => (
                 <option key={source} value={source}>
                   {source}
@@ -503,12 +481,12 @@ export default function GameMonitorPage() {
                 onChange={(event) => setFilters((prev) => ({ ...prev, onlyMatched: event.target.checked }))}
                 className="h-4 w-4 rounded border-surface-600 bg-surface-950 accent-primary-500"
               />
-              Только с SteamSpy-данными
+              {t.catalog.onlySpy}
             </label>
           </div>
 
           <div className="text-xs text-slate-500">
-            Показано: {sorted.length} из {games.length.toLocaleString('ru-RU')}
+            {t.catalog.shownOf(sorted.length, formatNumber(games.length, locale))}
           </div>
 
           {filtersActive && (
@@ -519,7 +497,7 @@ export default function GameMonitorPage() {
               }}
               className="btn-ghost w-full py-2 text-xs"
             >
-              Сбросить фильтры
+              {t.catalog.resetFilters}
             </button>
           )}
         </aside>
@@ -530,14 +508,14 @@ export default function GameMonitorPage() {
               value={sort}
               onChange={(event) => setSort(event.target.value as SortKey)}
               className="input h-10 w-52 bg-surface-950 text-sm"
-              title="Сортировка"
+              title={t.catalog.sortTitle}
             >
-              <option value="relevance">Сортировка: релевантность</option>
-              <option value="name">По названию</option>
-              <option value="rating">По рейтингу</option>
-              <option value="price">По цене</option>
-              <option value="owners">По владельцам</option>
-              <option value="release">По дате релиза</option>
+              <option value="relevance">{t.catalog.sortRelevance}</option>
+              <option value="name">{t.catalog.sortName}</option>
+              <option value="rating">{t.catalog.sortRating}</option>
+              <option value="price">{t.catalog.sortPrice}</option>
+              <option value="owners">{t.catalog.sortOwners}</option>
+              <option value="release">{t.catalog.sortRelease}</option>
             </select>
             <div className="ml-auto flex items-center gap-2">
               <div className="flex rounded-xl border border-surface-700 bg-surface-900 p-0.5">
@@ -546,7 +524,7 @@ export default function GameMonitorPage() {
                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                     view === 'grid' ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title="Сетка"
+                  title={t.catalog.viewGrid}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -560,7 +538,7 @@ export default function GameMonitorPage() {
                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                     view === 'compact' ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title="Компактная сетка"
+                  title={t.catalog.viewCompact}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="3" y="3" width="8" height="5" rx="1" />
@@ -576,7 +554,7 @@ export default function GameMonitorPage() {
                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                     view === 'list' ? 'bg-primary-500 text-surface-950' : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title="Список"
+                  title={t.catalog.viewList}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="3" y="4" width="18" height="4" rx="1" />
@@ -601,7 +579,7 @@ export default function GameMonitorPage() {
                 >
                   <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
                 </svg>
-                <span className="whitespace-nowrap">{loading ? 'Обновление...' : 'Обновить'}</span>
+                <span className="whitespace-nowrap">{loading ? t.common.updating : t.common.refresh}</span>
               </button>
             </div>
           </div>
@@ -615,8 +593,8 @@ export default function GameMonitorPage() {
                     <path d="M21 3v6h-6" />
                   </svg>
                 </div>
-                <div className="text-sm font-medium text-slate-300">Игр не найдено</div>
-                <div className="text-xs text-slate-500">Попробуйте изменить фильтр</div>
+                <div className="text-sm font-medium text-slate-300">{t.catalog.noGames}</div>
+                <div className="text-xs text-slate-500">{t.catalog.tryFilter}</div>
                 <button
                   onClick={() => {
                     setQuery('')
@@ -624,7 +602,7 @@ export default function GameMonitorPage() {
                   }}
                   className="btn-ghost mt-2 py-2 text-xs"
                 >
-                  Сбросить
+                  {t.common.reset}
                 </button>
               </div>
             ) : (<>
@@ -650,9 +628,9 @@ export default function GameMonitorPage() {
                 </div>
               ))}
             </div>
-            {loadingMore && <div className="py-4 text-center text-sm text-slate-500">Загрузка...</div>}
+            {loadingMore && <div className="py-4 text-center text-sm text-slate-500">{t.common.loading}</div>}
             {!hasMore && (
-              <div className="py-4 text-center text-xs text-slate-600">Конец каталога</div>
+              <div className="py-4 text-center text-xs text-slate-600">{t.catalog.endOfCatalog}</div>
             )}
             </>
           )}
@@ -662,7 +640,10 @@ export default function GameMonitorPage() {
 
       {tab === 'monitoring' && (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-          {monitorAppId == null || !game ? (
+          {monitorAppId == null || !details ? (
+            monitorLoading ? (
+              <Spinner />
+            ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-surface-700 bg-surface-800/50 text-slate-400">
                 <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -670,22 +651,23 @@ export default function GameMonitorPage() {
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </div>
-              <div className="text-sm font-medium text-slate-300">Игра для мониторинга не выбрана</div>
-              <div className="text-xs text-slate-500">Откройте карточку игры и нажмите «Мониторинг и алерты»</div>
+              <div className="text-sm font-medium text-slate-300">{t.catalog.noMonitorGame}</div>
+              <div className="text-xs text-slate-500">{t.catalog.openCardHint}</div>
               <button onClick={() => setTab('catalog')} className="btn-ghost mt-2 py-2 text-xs">
-                Перейти в каталог
+                {t.catalog.toCatalog}
               </button>
             </div>
+            )
           ) : (
           <div className="flex flex-col gap-6">
             {monitorLoading && <Spinner />}
 
             <div>
-              <h3 className="mb-3 text-base font-bold text-white">Мониторинг: {game.name}</h3>
+              <h3 className="mb-3 text-base font-bold text-white">{t.catalog.monitoringOf(details.title ?? games.find((g) => g.id === monitorAppId)?.name ?? '—')}</h3>
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatCard
-                  label="Цена"
-                  value={game.currentPrice != null ? (game.currentPrice > 0 ? `$${(game.currentPrice / 100).toFixed(2)}` : 'Бесплатно') : '—'}
+                  label={t.catalog.statPrice}
+                  value={details.price > 0 ? `$${details.price.toFixed(2)}` : t.common.free}
                   accent="blue"
                   icon={
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -695,8 +677,8 @@ export default function GameMonitorPage() {
                   }
                 />
                 <StatCard
-                  label="Скидка, %"
-                  value={game.currentDiscountPercent ?? '—'}
+                  label={t.catalog.statDiscount}
+                  value={`${details.discountPercent}%`}
                   accent="green"
                   icon={
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -706,8 +688,8 @@ export default function GameMonitorPage() {
                   }
                 />
                 <StatCard
-                  label="Отзывы, %"
-                  value={game.positiveReviewPercent?.toFixed(1) ?? '—'}
+                  label={t.gameDetail.oldPrice}
+                  value={details.oldPrice > 0 ? `$${details.oldPrice.toFixed(2)}` : '—'}
                   accent="blue"
                   icon={
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -717,8 +699,8 @@ export default function GameMonitorPage() {
                   }
                 />
                 <StatCard
-                  label="Рейтинг"
-                  value={game.positiveReviewPercent != null ? `★ ${(game.positiveReviewPercent / 20).toFixed(1)}` : '—'}
+                  label={t.catalog.statRating}
+                  value={details.averageRating != null ? details.averageRating.toFixed(1) : '—'}
                   accent="amber"
                   icon={
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -729,117 +711,40 @@ export default function GameMonitorPage() {
               </div>
             </div>
 
-            <div className="card card-hud p-5">
-              <div className="card-header-hud mb-4">
-                <h3 className="card-header-hud__title">Тренд {game.name}: ревью и цена</h3>
-                <div className="card-header-hud__subtitle flex gap-1">
-                  {([7, 30, 90, 365] as const).map((days) => (
-                    <button
-                      key={days}
-                      onClick={() => setTrendDays(days)}
-                      className={
-                        days === trendDays
-                          ? 'btn-primary px-3 py-1.5 text-xs'
-                          : 'btn-ghost px-3 py-1.5 text-xs'
-                      }
-                    >
-                      {days === 365 ? '1 год' : `${days} д`}
-                    </button>
-                  ))}
+            {details.description && (
+              <div className="card card-hud p-5">
+                <div className="card-header-hud mb-2">
+                  <h3 className="card-header-hud__title">{t.gameDetail.description}</h3>
                 </div>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{details.description}</p>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={formatTrend(cutTrend(game.trend))} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
-                <YAxis yAxisId="percent" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis
-                  yAxisId="price"
-                  orientation="right"
-                  tick={{ fill: chartTheme.axisTick, fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={46}
-                  tickFormatter={(value: number) => `$${value}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: chartTheme.tooltip.background,
-                    border: chartTheme.tooltip.border,
-                    borderRadius: chartTheme.tooltip.borderRadius,
-                    boxShadow: chartTheme.tooltip.boxShadow,
-                    fontSize: chartTheme.tooltip.fontSize,
-                  }}
-                  formatter={(value, name) => (name === 'Цена, $' ? [`$${Number(value).toFixed(2)}`, name] : [value, name])}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line yAxisId="percent" dataKey="positiveReviewPercent" name="Положительных, %" stroke="#2dd4bf" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                <Line yAxisId="percent" dataKey="discountPercent" name="Скидка, %" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                <Line yAxisId="price" dataKey="price" name="Цена, $" stroke="#a78bfa" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            )}
+
+          <GameDetailsExtra
+            gameName={details.title ?? games.find((g) => g.id === monitorAppId)?.name ?? ''}
+            tags={details.tags}
+            screenshots={details.screenshots}
+            dlcs={details.dlcs}
+          />
+          <div>
+            <button
+              onClick={() => {
+                const item = games.find((g) => g.id === monitorAppId)
+                if (item) {
+                  navigate(`/games/${item.id}`, { state: { game: item } })
+                }
+              }}
+              className="btn-ghost h-9 px-4 text-sm"
+            >
+              {t.catalog.fullPage}
+            </button>
           </div>
-
-          {news.length > 0 && (
-            <div className="card card-hud p-5">
-              <div className="card-header-hud mb-3">
-                <h3 className="card-header-hud__title">Новости по игре</h3>
-              </div>
-              <div className="flex flex-col gap-2">
-                {news.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 border-b border-surface-800 pb-2 text-sm last:border-0">
-                    <a href={item.url ?? '#'} target="_blank" rel="noreferrer" className="truncate text-primary-400 hover:text-primary-300 hover:underline">
-                      {item.title}
-                    </a>
-                    <span className="shrink-0 text-xs text-slate-500" title={item.date ? new Date(item.date).toLocaleString('ru-RU') : ''}>
-                      {item.date ? formatRelativeDate(item.date) : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {game.achievements.length > 0 && (
-            <div className="card card-hud p-5">
-              <div className="card-header-hud mb-3">
-                <h3 className="card-header-hud__title">
-                  Ачивки: наши игроки vs глобально
-                </h3>
-                <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">
-                  владельцев среди наших игроков: {game.clanOwners}
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-slate-400">
-                      <th className="pb-2">Ачивка</th>
-                      <th className="pb-2">Наши, %</th>
-                      <th className="pb-2">Глобально, %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-slate-300">
-                    {game.achievements.slice(0, 20).map((achievement) => (
-                      <tr key={achievement.achievementId} className="border-t border-surface-800/60 transition-colors hover:bg-surface-800/40">
-                        <td className="py-2">{achievement.achievementId}</td>
-                        <td className="py-2">{achievement.clanUnlockPercent.toFixed(1)}%</td>
-                        <td className="py-2">
-                          {achievement.globalUnlockPercent != null ? `${achievement.globalUnlockPercent.toFixed(1)}%` : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
           )}
         </div>
       )}
 
-      {tab === 'alerts' && (
+      {tab === 'alerts' && canShowAlerts && (
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
           <GameMonitorTrendChart alertsByDay={alertsByDay} />
           <AlertRulesPanel selectedAppId={monitorAppId ?? undefined} />
@@ -851,11 +756,8 @@ export default function GameMonitorPage() {
           game={selectedGame}
           onClose={() => setSelectedGame(null)}
           onShowMonitor={() => {
-              if (selectedGame.steamAppId != null) {
-                void loadMonitor(selectedGame.steamAppId)
-                setSelectedGame(null)
-                setTab('monitoring')
-              }
+              setSelectedGame(null)
+              setTab('monitoring')
             }}
           onOpenDetail={() => navigate(`/games/${selectedGame.id}`, { state: { game: selectedGame } })}
         />

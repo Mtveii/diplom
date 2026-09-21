@@ -1,5 +1,8 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Fragment } from 'react'
+import { Area, AreaChart, CartesianGrid, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { chartTheme } from '@/styles/chartTheme'
+import { useLocale } from '@/hooks/useLocale'
+import { formatDayMonth, formatFullDateTime } from '@/utils/format'
 
 export interface ChartPoint {
   timestamp: string
@@ -12,6 +15,23 @@ export interface ChartSecondarySeries {
   color?: string
 }
 
+export interface ChartForecastPoint {
+  timestamp: string
+  value: number
+  lower: number
+  upper: number
+}
+
+export interface ChartForecast {
+  /** Ключ исторической серии: 'value' или 'value2'. */
+  target: string
+  label: string
+  color: string
+  /** ISO-метка последней исторической точки — межа «факт / прогноз». */
+  from: string
+  points: ChartForecastPoint[]
+}
+
 interface ChartProps {
   data: ChartPoint[]
   label: string
@@ -19,34 +39,55 @@ interface ChartProps {
   color?: string
   /** Вторая серия (например, «Новые аккаунты») на общей оси времени. */
   secondary?: ChartSecondarySeries
+  /** Прогнозы: пунктир + коридор, визуально отличные от факта. */
+  forecasts?: ChartForecast[]
 }
 
 interface ChartRow {
   timestamp: string
   value: number | null
   value2: number | null
+  [extra: string]: string | number | [number, number] | null
 }
 
-/** Объединяет две серии по оси времени; в точках без значения ставит null. */
-function mergeSeries(primary: ChartPoint[], secondary: ChartPoint[] | undefined): ChartRow[] {
-  if (!secondary) {
-    return primary.map((point) => ({ timestamp: point.timestamp, value: point.value, value2: null }))
-  }
+/** Объединяет серии и прогнозы по оси времени; в точках без значения ставит null. */
+function mergeSeries(primary: ChartPoint[], secondary: ChartPoint[] | undefined, forecasts: ChartForecast[]): ChartRow[] {
   const primaryByTime = new Map(primary.map((point) => [point.timestamp, point.value]))
-  const secondaryByTime = new Map(secondary.map((point) => [point.timestamp, point.value]))
-  const times = [...new Set([...primaryByTime.keys(), ...secondaryByTime.keys()])].sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-  )
-  return times.map((timestamp) => ({
-    timestamp,
-    value: primaryByTime.get(timestamp) ?? null,
-    value2: secondaryByTime.get(timestamp) ?? null,
-  }))
+  const secondaryByTime = new Map((secondary ?? []).map((point) => [point.timestamp, point.value]))
+  const forecastByTarget = new Map(forecasts.map((f) => [f.target, new Map(f.points.map((p) => [p.timestamp, p]))]))
+  const times = new Set<string>([...primaryByTime.keys(), ...secondaryByTime.keys()])
+  for (const byTime of forecastByTarget.values()) {
+    for (const timestamp of byTime.keys()) {
+      times.add(timestamp)
+    }
+  }
+  return [...times]
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+    .map((timestamp) => {
+      const row: ChartRow = {
+        timestamp,
+        value: primaryByTime.get(timestamp) ?? null,
+        value2: secondaryByTime.get(timestamp) ?? null,
+      }
+      for (const [target, byTime] of forecastByTarget) {
+        const point = byTime.get(timestamp)
+        row[`${target}F`] = point?.value ?? null
+        row[`${target}FRange`] = point ? [point.lower, point.upper] : null
+      }
+      return row
+    })
 }
 
-export default function Chart({ data, label, height = 280, color = '#60a5fa', secondary }: ChartProps) {
+function formatBand(value: [number, number]): string {
+  const fmt = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1))
+  return `${fmt(value[0])}–${fmt(value[1])}`
+}
+
+export default function Chart({ data, label, height = 280, color = '#60a5fa', secondary, forecasts = [] }: ChartProps) {
+  const { locale, t } = useLocale()
   const secondaryColor = secondary?.color ?? '#f59e0b'
-  const rows = mergeSeries(data, secondary?.data)
+  const rows = mergeSeries(data, secondary?.data, forecasts)
+  const forecastFrom = forecasts.length > 0 ? forecasts[0].from : null
 
   return (
     <div className="w-full min-w-0" style={{ height }}>
@@ -68,7 +109,7 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
             tick={{ fill: chartTheme.axisTick, fontSize: 11 }}
             axisLine={{ stroke: chartTheme.axisLine }}
             tickLine={false}
-            tickFormatter={(value: string) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+            tickFormatter={(value: string) => formatDayMonth(value, locale)}
           />
           <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={34} />
           <Tooltip
@@ -81,8 +122,10 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
               fontSize: chartTheme.tooltip.fontSize,
             }}
             labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
-            labelFormatter={(value) => new Date(value as string).toLocaleString('ru-RU')}
+            labelFormatter={(value) => formatFullDateTime(value as string, locale)}
+            formatter={(value, name) => (Array.isArray(value) ? [formatBand(value as [number, number]), name] : [value, name])}
           />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
           <Area
             type="monotone"
             dataKey="value"
@@ -107,6 +150,33 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
               activeDot={{ r: 4, strokeWidth: 0 }}
               connectNulls
             />
+          )}
+          {forecasts.map((forecast) => (
+            <Fragment key={forecast.target}>
+              <Area
+                type="monotone"
+                dataKey={`${forecast.target}FRange`}
+                legendType="none"
+                stroke="none"
+                fill={forecast.color}
+                fillOpacity={0.12}
+                connectNulls
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey={`${forecast.target}F`}
+                name={`${forecast.label} — ${t.forecast.suffix}`}
+                stroke={forecast.color}
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                connectNulls
+              />
+            </Fragment>
+          ))}
+          {forecastFrom && (
+            <ReferenceLine x={forecastFrom} stroke={chartTheme.axisLine} strokeDasharray="4 4" />
           )}
         </AreaChart>
       </ResponsiveContainer>

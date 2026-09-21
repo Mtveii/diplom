@@ -1,11 +1,16 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import Modal from '@/components/Modal'
+import RoleChangeSelect from '@/components/RoleChangeSelect'
 import Spinner from '@/components/Spinner'
+import { auditApi } from '@/services/api/analytics.api'
 import { notificationsApi } from '@/services/api/notifications.api'
 import { usersApi } from '@/services/api/users.api'
+import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
+import { canManageRoles, canViewSecurity, hasOtherEffectiveSuperAdmin, isEffectiveSuperAdmin } from '@/utils/role'
 import { formatDateTime } from '@/utils/format'
+import type { AdminActionLogDto } from '@/types/analytics'
 import type { AdminUserDto, UserRole } from '@/types/auth'
 import type { NotificationChannel, NotificationChannelSettingDto } from '@/types/notification'
 
@@ -18,42 +23,42 @@ const channelLabels: Record<NotificationChannel, string> = {
   InApp: 'In-app (SignalR)',
 }
 
-const rolePermissions: Array<{ role: UserRole; name: string; description: string; permissions: string[] }> = [
-  {
-    role: 'Viewer',
-    name: 'Наблюдатель',
-    description: 'Базовый доступ для просмотра данных пользователей',
-    permissions: ['Просмотр дашборда', 'Просмотр каталога игр и мониторинга', 'Просмотр списка участников'],
-  },
-  {
-    role: 'Analyst',
-    name: 'Аналитик',
-    description: 'Доступ к отчетам и аналитике',
-    permissions: ['Всё, что Viewer', 'Просмотр аналитики и когорт', 'Экспорт отчетов (PDF/Excel)'],
-  },
-  {
-    role: 'Moderator',
-    name: 'Модератор',
-    description: 'Управление участниками и заявками',
-    permissions: ['Всё, что Analyst', 'Управление заявками на вступление', 'Модерация участников (статусы, варны, роли)'],
-  },
-  {
-    role: 'SuperAdmin',
-    name: 'Суперлидер',
-    description: 'Полный доступ ко всем настройкам системы',
-    permissions: ['Всё, что Moderator', 'Настройка каналов уведомлений', 'Управление ролями пользователей', 'Системные настройки'],
-  },
-]
-
 export default function SettingsPage() {
-  const user = useAuthStore((s) => s.user)
-  const role = user?.role ?? 'User'
-  const isSuperAdmin = role === 'SuperAdmin'
-  const isAdmin = ['SuperAdmin', 'Moderator', 'Analyst'].includes(role) || isSuperAdmin
-
+  const { t, locale } = useLocale()
+  const rolePermissions: Array<{ role: UserRole; name: string; description: string; permissions: string[] }> = [
+    {
+      role: 'Admin',
+      name: t.settings.roleAdmin,
+      description: t.settings.roleAdminDesc,
+      permissions: t.settings.roleAdminPerms,
+    },
+    {
+      role: 'Analyst',
+      name: t.settings.roleAnalyst,
+      description: t.settings.roleAnalystDesc,
+      permissions: t.settings.roleAnalystPerms,
+    },
+    {
+      role: 'Moderator',
+      name: t.settings.roleModerator,
+      description: t.settings.roleModeratorDesc,
+      permissions: t.settings.roleModeratorPerms,
+    },
+    {
+      role: 'SuperAdmin',
+      name: t.settings.roleSuperAdmin,
+      description: t.settings.roleSuperAdminDesc,
+      permissions: t.settings.roleSuperAdminPerms,
+    },
+  ]
+  const role = useAuthStore((state) => state.role)
+  /** Смена ролей — только SuperAdmin; аудит/безопасность — SuperAdmin и Admin. */
+  const showRolesTab = canManageRoles(role)
+  const showSecurityTab = canViewSecurity(role)
   const [tab, setTab] = useState<SettingsTab>('channels')
   const [channels, setChannels] = useState<NotificationChannelSettingDto[]>([])
   const [users, setUsers] = useState<AdminUserDto[] | null>(null)
+  const [auditLogs, setAuditLogs] = useState<AdminActionLogDto[]>([])
   const [loading, setLoading] = useState(true)
 
   const [editingChannel, setEditingChannel] = useState<NotificationChannelSettingDto | null>(null)
@@ -67,20 +72,23 @@ export default function SettingsPage() {
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      const [channelData, usersData] = await Promise.all([
-        isAdmin ? notificationsApi.getChannels() : Promise.resolve([]),
-        isSuperAdmin || isAdmin ? usersApi.getUsers() : Promise.resolve(null),
+      const [channelData, usersData, auditData] = await Promise.all([
+        notificationsApi.getChannels(),
+        usersApi.getUsers().catch(() => null),
+        auditApi.getLogs(1, 50).catch(() => ({ items: [], totalCount: 0 })),
       ])
       setChannels(channelData)
       setUsers(usersData)
+      setAuditLogs(auditData.items)
     } catch (err) {
       console.warn('[SettingsPage] Не удалось загрузить настройки — показываю пустые данные', err)
       setChannels([])
       setUsers(null)
+      setAuditLogs([])
     } finally {
       setLoading(false)
     }
-  }, [isAdmin, isSuperAdmin])
+  }, [])
 
   useEffect(() => {
     void reload()
@@ -89,10 +97,10 @@ export default function SettingsPage() {
   const updateChannelStatus = async (channel: NotificationChannel, isEnabled: boolean, configJson: string | null) => {
     try {
       await notificationsApi.updateChannel(channel, isEnabled, configJson)
-      toast.success('Настройки канала обновлены')
+      toast.success(t.settings.channelUpdated)
       await reload()
     } catch {
-      toast.error('Не удалось обновить канал')
+      toast.error(t.settings.channelError)
     }
   }
 
@@ -118,11 +126,11 @@ export default function SettingsPage() {
     if (!editingChannel) return
     // Базовая валидация перед отправкой секретов
     if (editingChannel.channel === 'Discord' && channelForm.webhookUrl && !channelForm.webhookUrl.startsWith('https://')) {
-      toast.warning('Webhook должен начинаться с https://')
+      toast.warning(t.settings.webhookHttps)
       return
     }
     if (editingChannel.channel === 'Telegram' && channelForm.botToken && channelForm.botToken.includes(' ')) {
-      toast.warning('Bot Token не должен содержать пробелы')
+      toast.warning(t.settings.botTokenSpaces)
       return
     }
     const payload: Record<string, string> = {}
@@ -140,37 +148,48 @@ export default function SettingsPage() {
   }
 
   const toggleBan = async (userId: string, isBanned: boolean) => {
+    // Последнего действующего суперадмина банить нельзя — иначе некому управлять ролями.
+    if (!isBanned) {
+      const target = users?.find((item) => item.id === userId)
+      if (target && isEffectiveSuperAdmin(target) && !hasOtherEffectiveSuperAdmin(users ?? [], userId)) {
+        toast.error(t.settings.lastSuperAdmin)
+        return
+      }
+    }
     try {
       await usersApi.toggleBan(userId)
-      toast.success(isBanned ? 'Пользователь разбанен' : 'Пользователь забанен')
+      toast.success(isBanned ? t.settings.userUnbanned : t.settings.userBanned)
       await reload()
     } catch {
-      toast.error('Не удалось изменить статус блокировки')
+      toast.error(t.settings.banError)
     }
   }
 
   if (loading) {
-    return <Spinner label="Загрузка настроек..." fullPage />
+    return <Spinner label={t.settings.loading} fullPage />
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 sm:gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white">Настройки системы</h1>
-          <p className="mt-0.5 text-sm text-slate-400">Каналы уведомлений, роли, безопасность и информация о проекте</p>
+          <h1 className="text-xl font-bold text-white">{t.settings.title}</h1>
+          <p className="mt-0.5 text-sm text-slate-400">{t.settings.subtitle}</p>
         </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-surface-700">
         {(
           [
-            { id: 'channels', label: 'Каналы уведомлений' },
-            { id: 'roles', label: 'Роли и права' },
-            { id: 'security', label: 'Безопасность и сессии' },
-            { id: 'about', label: 'О проекте' },
+            { id: 'channels', label: t.settings.tabChannels },
+            { id: 'roles', label: t.settings.tabRoles },
+            { id: 'security', label: t.settings.tabSecurity },
+            { id: 'about', label: t.settings.tabAbout },
           ] as const
-        ).map((t) => (
+        )
+          .filter((item) => item.id !== 'roles' || showRolesTab)
+          .filter((item) => item.id !== 'security' || showSecurityTab)
+          .map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -188,12 +207,9 @@ export default function SettingsPage() {
           {tab === 'channels' && (
             <div className="card card-hud p-5">
               <div className="card-header-hud mb-4">
-                <h3 className="card-header-hud__title">Каналы уведомлений и вебхуки</h3>
+                <h3 className="card-header-hud__title">{t.settings.channelsTitle}</h3>
               </div>
-              {!isAdmin ? (
-                <div className="text-sm text-slate-500">У вас нет прав для настройки каналов уведомлений</div>
-              ) : (
-                <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                   {channels.map((channel) => {
                     let parsed: Record<string, string> = {}
                     try {
@@ -214,7 +230,7 @@ export default function SettingsPage() {
                               className={`relative h-5 w-9 rounded-full transition-colors ${
                                 channel.isEnabled ? 'bg-success-500 shadow-glow' : 'bg-surface-700'
                               }`}
-                              title={channel.isEnabled ? 'Отключить' : 'Включить'}
+                              title={channel.isEnabled ? t.settings.disableTitle : t.settings.enableTitle}
                             >
                               <span
                                 className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
@@ -224,46 +240,32 @@ export default function SettingsPage() {
                             </button>
                             <span className="text-sm font-medium text-slate-100">{channelLabels[channel.channel]}</span>
                             <span className={`text-xs font-medium ${channel.isEnabled ? 'text-success-400' : 'text-slate-500'}`}>
-                              {channel.isEnabled ? 'включен' : 'выключен'}
+                              {channel.isEnabled ? t.settings.enabledOn : t.settings.enabledOff}
                             </span>
                           </div>
-                          <div className="mt-1 truncate text-xs text-slate-500">{summary || 'Конфигурация не задана'}</div>
+                          <div className="mt-1 truncate text-xs text-slate-500">{summary || t.settings.notConfigured}</div>
                         </div>
 
                         <div className="flex items-center gap-2">
                           {channel.channel !== 'InApp' && (
                             <button onClick={() => handleOpenConfig(channel)} className="btn-ghost px-3 py-1.5 text-xs">
-                              Настроить
+                              {t.settings.configure}
                             </button>
                           )}
-                          <button
-                            onClick={async () => {
-                              try {
-                                await notificationsApi.sendTest(channel.channel)
-                                toast.success(`Тестовое уведомление отправлено в ${channel.channel}`)
-                              } catch {
-                                toast.error('Не удалось отправить тестовое уведомление')
-                              }
-                            }}
-                            className="btn-ghost px-3 py-1.5 text-xs"
-                          >
-                            Тест
-                          </button>
                         </div>
                       </div>
                     )
                   })}
                 </div>
-              )}
             </div>
           )}
 
-          {tab === 'roles' && (
+          {tab === 'roles' && showRolesTab && (
             <div className="flex flex-col gap-6">
-              {isSuperAdmin && users && (
+              {users && (
                   <div className="card card-hud p-5">
                     <div className="card-header-hud mb-4">
-                      <h3 className="card-header-hud__title">Пользователи сети</h3>
+                      <h3 className="card-header-hud__title">{t.settings.networkUsers}</h3>
                     </div>
                     <div className="flex flex-col gap-2.5">
                       {(users ?? []).map((managedUser) => (
@@ -273,21 +275,26 @@ export default function SettingsPage() {
                           </div>
                           <div className="min-w-0 flex-1 text-sm">
                             <div className="truncate font-medium text-slate-100">{managedUser.username}</div>
-                            <div className="text-xs text-slate-500">{managedUser.email ?? 'email скрыт'} · {managedUser.role}</div>
+                            <div className="text-xs text-slate-500">{managedUser.email ?? t.settings.emailHidden} · {managedUser.role}</div>
                           </div>
                           <span className={`badge border px-2 py-0.5 text-[11px] ${managedUser.isBanned ? 'border-danger-500/40 bg-danger-500/10 text-danger-400' : 'border-success-500/40 bg-success-500/10 text-success-400'}`}>
-                            {managedUser.isBanned ? 'Забанен' : 'Активен'}
+                            {managedUser.isBanned ? t.settings.banned : t.settings.active}
                           </span>
+                          <RoleChangeSelect
+                            user={managedUser}
+                            users={users ?? []}
+                            onChanged={() => void reload()}
+                          />
                           <button
                             onClick={() => void toggleBan(managedUser.id, managedUser.isBanned)}
                             className={managedUser.isBanned ? 'btn-ghost h-8 px-3 text-xs' : 'btn-danger h-8 px-3 text-xs'}
                           >
-                            {managedUser.isBanned ? 'Разбанить' : 'Забанить'}
+                            {managedUser.isBanned ? t.settings.unban : t.settings.ban}
                           </button>
                         </div>
                       ))}
                       {users?.length === 0 && (
-                        <p className="py-4 text-center text-sm text-slate-500">Пользователи не найдены</p>
+                        <p className="py-4 text-center text-sm text-slate-500">{t.settings.usersEmpty}</p>
                       )}
                     </div>
                   </div>
@@ -295,7 +302,7 @@ export default function SettingsPage() {
 
               <div className="card card-hud p-5">
                 <div className="card-header-hud mb-4">
-                  <h3 className="card-header-hud__title">Матрица ролей и полномочий</h3>
+                  <h3 className="card-header-hud__title">{t.settings.rolesMatrix}</h3>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {rolePermissions.map((rp) => (
@@ -320,22 +327,23 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {tab === 'security' && (
+          {tab === 'security' && showSecurityTab && (
+            <div className="flex flex-col gap-6">
             <div className="card card-hud p-5">
               <div className="card-header-hud mb-4">
-                <h3 className="card-header-hud__title">Безопасность и сессии пользователей</h3>
+                  <h3 className="card-header-hud__title">{t.settings.securityTitle}</h3>
               </div>
               <p className="mb-4 text-xs text-slate-400">
-                Журнал активности аутентификации и активные пользователи системы
+                {t.settings.securityDesc}
               </p>
               {users && users.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs text-slate-400">
-                        <th className="pb-2">Пользователь</th>
-                        <th className="pb-2">Роль</th>
-                        <th className="pb-2">Регистрация</th>
+                        <th className="pb-2">{t.settings.colUser}</th>
+                        <th className="pb-2">{t.settings.colRole}</th>
+                        <th className="pb-2">{t.settings.colRegistered}</th>
                       </tr>
                     </thead>
                     <tbody className="text-slate-300">
@@ -352,28 +360,60 @@ export default function SettingsPage() {
                           <td className="py-2.5">
                             <span className="badge border border-surface-700 bg-surface-800 text-slate-300">{u.role}</span>
                           </td>
-                          <td className="py-2.5 text-xs text-slate-400">{formatDateTime(u.createdAt)}</td>
+                          <td className="py-2.5 text-xs text-slate-400">{formatDateTime(u.createdAt, locale)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">Нет данных о пользователях</div>
+                <div className="text-sm text-slate-500">{t.settings.securityEmpty}</div>
               )}
+            </div>
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-4">
+                <h3 className="card-header-hud__title">{t.settings.auditTitle}</h3>
+              </div>
+              {auditLogs.length === 0 ? (
+                <div className="text-sm text-slate-500">{t.settings.auditEmpty}</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-slate-400">
+                        <th className="pb-2">{t.settings.colUser}</th>
+                        <th className="pb-2">{t.settings.auditAction}</th>
+                        <th className="pb-2">{t.settings.auditEntity}</th>
+                        <th className="pb-2 text-right">{t.settings.auditTime}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-300">
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="border-t border-surface-700/60">
+                          <td className="max-w-32 truncate py-2.5 font-medium text-slate-100">{log.adminUsername ?? '—'}</td>
+                          <td className="max-w-48 truncate py-2.5 text-xs">{log.action ?? '—'}</td>
+                          <td className="max-w-48 truncate py-2.5 text-xs text-slate-400">
+                            {[log.entityName, log.entityId].filter(Boolean).join(' · ') || '—'}
+                          </td>
+                          <td className="py-2.5 text-right text-xs text-slate-400">{formatDateTime(log.timestamp, locale)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
             </div>
           )}
 
           {tab === 'about' && (
             <div className="card card-hud p-5">
               <div className="card-header-hud mb-3">
-                <h3 className="card-header-hud__title">О проектной системе</h3>
+                <h3 className="card-header-hud__title">{t.settings.aboutTitle}</h3>
               </div>
               <div className="flex flex-col gap-3 text-sm leading-relaxed text-slate-300">
                 <p>
-                  <strong className="text-white">Админ-панель пользователей Steam</strong> — дипломный программный комплекс для
-                  автоматизации мониторинга пользователей, их игровой активности и создания аккаунтов, цен игр в Steam/GOG/Epic/F2G, а также
-                  управления заявками и алертами в реальном времени.
+                  <strong className="text-white">{t.settings.aboutLead}</strong> {t.settings.aboutText}
                 </p>
                 <div className="tech-badges pt-2">
                   {['ASP.NET Core 8', 'PostgreSQL', 'SignalR', 'React 18', 'Recharts', 'Zustand'].map(t => (
@@ -382,23 +422,19 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 pt-2">
                   <div className="card card-hud card-hud--sm p-3.5 text-xs">
-                    <div className="font-semibold text-white mb-1">Backend стек</div>
+                    <div className="font-semibold text-white mb-1">{t.settings.backendStack}</div>
                     <ul className="flex flex-col gap-1 text-slate-400">
-                      <li>· ASP.NET Core 8 Web API (Clean Architecture)</li>
-                      <li>· Entity Framework Core + PostgreSQL</li>
-                      <li>· Hangfire (фоновые задачи синховки)</li>
-                      <li>· SignalR (real-time события)</li>
-                      <li>· QuestPDF & ClosedXML (экспорт отчетов)</li>
+                      {t.settings.backendItems.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
                     </ul>
                   </div>
                   <div className="card card-hud card-hud--sm p-3.5 text-xs">
-                    <div className="font-semibold text-white mb-1">Frontend стек</div>
+                    <div className="font-semibold text-white mb-1">{t.settings.frontendStack}</div>
                     <ul className="flex flex-col gap-1 text-slate-400">
-                      <li>· React 18 + TypeScript + Vite</li>
-                      <li>· Tailwind CSS + Custom Dark Theme</li>
-                      <li>· Recharts (графики активности и цен)</li>
-                      <li>· Zustand (состояние и тосты)</li>
-                      <li>· TanStack Virtual (виртуализация каталога)</li>
+                      {t.settings.frontendItems.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -410,7 +446,7 @@ export default function SettingsPage() {
 
       <Modal
         open={editingChannel != null}
-        title={`Настройка канала: ${editingChannel ? channelLabels[editingChannel.channel] : ''}`}
+        title={t.settings.channelSetup(editingChannel ? channelLabels[editingChannel.channel] : '')}
         onClose={() => setEditingChannel(null)}
       >
         <div className="flex flex-col gap-4">
@@ -437,6 +473,7 @@ export default function SettingsPage() {
                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
                   className="input w-full bg-surface-950 px-3 py-2 text-sm"
                 />
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t.settings.tokenHint}</p>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-400">Telegram Chat ID</label>
@@ -447,12 +484,18 @@ export default function SettingsPage() {
                   placeholder="-100123456789"
                   className="input w-full bg-surface-950 px-3 py-2 text-sm"
                 />
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t.settings.chatHint}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  <code className="rounded bg-surface-800 px-1.5 py-0.5 font-mono text-slate-300">
+                    api.telegram.org/bot{'<TOKEN>'}/getUpdates
+                  </code>
+                </p>
               </div>
             </>
           )}
           {editingChannel?.channel === 'Email' && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-400">Email получателей (через запятую)</label>
+              <label className="mb-1 block text-xs font-medium text-slate-400">{t.settings.emailRecipients}</label>
               <input
                 type="text"
                 value={channelForm.recipients}
@@ -465,10 +508,10 @@ export default function SettingsPage() {
 
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setEditingChannel(null)} className="btn-ghost px-4 py-2 text-sm">
-              Отмена
+              {t.common.cancel}
             </button>
             <button onClick={() => void handleSaveChannelConfig()} className="btn-primary px-4 py-2 text-sm">
-              Сохранить
+              {t.common.save}
             </button>
           </div>
         </div>

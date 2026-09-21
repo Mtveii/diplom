@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useLocale } from '@/hooks/useLocale'
 
 interface StatCardProps {
   label: string
@@ -7,6 +8,7 @@ interface StatCardProps {
   icon?: ReactNode
   hint?: string
   delta?: number | null
+  deltaTitle?: string
 }
 
 const accents: Record<NonNullable<StatCardProps['accent']>, { text: string; bar: string }> = {
@@ -17,7 +19,8 @@ const accents: Record<NonNullable<StatCardProps['accent']>, { text: string; bar:
   slate: { text: 'text-slate-200', bar: 'from-slate-500 to-slate-300' },
 }
 
-export default function StatCard({ label, value, accent = 'slate', icon, hint, delta }: StatCardProps) {
+export default function StatCard({ label, value, accent = 'slate', icon, hint, delta, deltaTitle }: StatCardProps) {
+  const { t } = useLocale()
   const palette = accents[accent]
   const hasDelta = typeof delta === 'number' && Number.isFinite(delta)
   return (
@@ -34,7 +37,7 @@ export default function StatCard({ label, value, accent = 'slate', icon, hint, d
                   ? 'border-success-500/40 bg-transparent text-success-400 shadow-[0_0_12px_-2px_rgba(52,211,153,0.5)]'
                   : 'border-danger-500/40 bg-transparent text-danger-400 shadow-[0_0_12px_-2px_rgba(239,68,68,0.45)]'
               }`}
-              title="к прошлому периоду"
+              title={deltaTitle ?? t.dashboard.vsPrevious}
             >
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 {delta! >= 0 ? <path d="M7 17L17 7" /> : <path d="M7 7l10 10" />}

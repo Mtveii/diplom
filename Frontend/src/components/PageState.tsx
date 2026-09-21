@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useLocale } from '@/hooks/useLocale'
 
 const ICON_CLASS = 'h-8 w-8'
 
@@ -113,28 +114,30 @@ export function PageSkeleton({ variant = 'lines', count = 5 }: PageSkeletonProps
 }
 
 export function OfflineState() {
+  const { t } = useLocale()
   return (
     <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-warning-500/40 bg-warning-500/10 text-warning-400">
         <OfflineIcon />
       </div>
-      <div className="mt-1 text-sm font-medium text-slate-200">Connection lost</div>
+      <div className="mt-1 text-sm font-medium text-slate-200">{t.pageState.connectionLost}</div>
       <div className="flex items-center gap-2 text-xs text-slate-500">
         <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-warning-400" />
-        Trying to reconnect...
+        {t.pageState.reconnecting}
       </div>
     </div>
   )
 }
 
 export function ForbiddenState() {
+  const { t } = useLocale()
   return (
     <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-danger-500/30 bg-danger-500/10 text-danger-400">
         <ForbiddenIcon />
       </div>
-      <div className="mt-1 text-sm font-medium text-slate-200">You don't have permission to access this page</div>
-      <div className="text-xs text-slate-500">Обратитесь к администратору, если считаете это ошибкой</div>
+      <div className="mt-1 text-sm font-medium text-slate-200">{t.pageState.forbidden}</div>
+      <div className="text-xs text-slate-500">{t.pageState.forbiddenHint}</div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { monitoringApi } from '@/services/api/monitoring.api'
+import { monitoringApi, type MonitoringPeriod } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
 import type { ChartPoint } from '@/components/Chart'
 import type { AdminUserDto } from '@/types/auth'
@@ -10,22 +10,40 @@ import type {
   TopPlayerDto,
 } from '@/types/monitoring'
 
-type Period = 'day' | 'week' | 'month'
+export type Period = MonitoringPeriod
 
-const BUCKET_COUNT: Record<Period, number> = { day: 24, week: 7, month: 30 }
+const BUCKET_COUNT: Record<Exclude<Period, 'all'>, number> = { day: 24, week: 7, month: 30, days60: 60, days90: 90 }
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
+/** Захист від гігантської сітки, якщо в даних затесався старий timestamp. */
+const MAX_ALL_DAYS = 730
 
 function bucketSize(period: Period): number {
   return period === 'day' ? HOUR_MS : DAY_MS
 }
 
+/** «Весь час» — денні бакети від найстарішої точки (activity + реєстрації) до зараз. */
+function bucketCount(period: Period, points: ActivityPointDto[], users: AdminUserDto[]): number {
+  if (period !== 'all') {
+    return BUCKET_COUNT[period]
+  }
+  const times = [
+    ...points.map((point) => new Date(point.timestamp).getTime()),
+    ...users.map((user) => new Date(user.createdAt).getTime()),
+  ].filter((time) => !Number.isNaN(time))
+  if (times.length === 0) {
+    return BUCKET_COUNT.month
+  }
+  const spanDays = Math.ceil((Date.now() - Math.min(...times)) / DAY_MS)
+  return Math.min(Math.max(spanDays, 1), MAX_ALL_DAYS)
+}
+
 /** Ровная сетка из N бакетов, последний заканчивается «сейчас». */
-function buildGrid(period: Period): number[] {
+function buildGrid(period: Period, count: number): number[] {
   const size = bucketSize(period)
   const now = Date.now()
   const lastStart = Math.floor(now / size) * size
-  return Array.from({ length: BUCKET_COUNT[period] }, (_, i) => lastStart - (BUCKET_COUNT[period] - 1 - i) * size)
+  return Array.from({ length: count }, (_, i) => lastStart - (count - 1 - i) * size)
 }
 
 function countInBucket(isoDates: string[], start: number, end: number): number {
@@ -37,9 +55,9 @@ function countInBucket(isoDates: string[], start: number, end: number): number {
 }
 
 /** Пик онлайна внутри каждого бакета (по точкам Slush API). */
-function buildOnlineSeries(points: ActivityPointDto[], period: Period): ChartPoint[] {
+function buildOnlineSeries(points: ActivityPointDto[], period: Period, count: number): ChartPoint[] {
   const size = bucketSize(period)
-  return buildGrid(period).map((start) => {
+  return buildGrid(period, count).map((start) => {
     const samples = points
       .map((point) => ({ time: new Date(point.timestamp).getTime(), online: point.onlineCount }))
       .filter((sample) => !Number.isNaN(sample.time) && sample.time >= start && sample.time < start + size)
@@ -49,10 +67,10 @@ function buildOnlineSeries(points: ActivityPointDto[], period: Period): ChartPoi
 }
 
 /** Число созданных аккаунтов в каждом бакете (по createdAt пользователей). */
-function buildRegistrationSeries(users: AdminUserDto[], period: Period): ChartPoint[] {
+function buildRegistrationSeries(users: AdminUserDto[], period: Period, count: number): ChartPoint[] {
   const size = bucketSize(period)
   const createdDates = users.map((user) => user.createdAt)
-  return buildGrid(period).map((start) => ({
+  return buildGrid(period, count).map((start) => ({
     timestamp: new Date(start).toISOString(),
     value: countInBucket(createdDates, start, start + size),
   }))
@@ -100,8 +118,9 @@ export function useMonitoringCharts() {
         console.warn('[useMonitoringCharts] Не удалось загрузить пользователей для регистраций', err)
       }
 
-      setActivity(buildOnlineSeries(activityData, period))
-      setRegistrations(buildRegistrationSeries(users, period))
+      const count = bucketCount(period, activityData, users)
+      setActivity(buildOnlineSeries(activityData, period, count))
+      setRegistrations(buildRegistrationSeries(users, period, count))
       setHeatmap(mergeHeatmapWithRegistrations(heatmapData, users))
       setTopPlayers(topData)
       setGameTrends(trendsData)

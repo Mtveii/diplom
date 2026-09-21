@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { healthApi } from '@/services/api/health.api'
+import { useLocale } from '@/hooks/useLocale'
 import type { SystemHealthDto } from '@/types/health'
 
 export default function SystemHealthPanel() {
+  const { t } = useLocale()
   const [health, setHealth] = useState<SystemHealthDto | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -26,8 +28,8 @@ export default function SystemHealthPanel() {
   if (loading && !health) {
     return (
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold text-slate-200">Системный мониторинг</h3>
-        <div className="text-xs text-slate-500">Загрузка статуса инфраструктуры...</div>
+        <h3 className="mb-3 text-sm font-semibold text-slate-200">{t.health.title}</h3>
+        <div className="text-xs text-slate-500">{t.health.loading}</div>
       </div>
     )
   }
@@ -38,9 +40,9 @@ export default function SystemHealthPanel() {
     <div className="card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-200">Системный мониторинг инфраструктуры</h3>
+          <h3 className="text-sm font-semibold text-slate-200">{t.health.fullTitle}</h3>
           <p className="mt-0.5 text-xs text-slate-400">
-            Версия: <span className="text-slate-200">{health?.version ?? '1.0.0'}</span> · Uptime: <span className="text-slate-200">{health?.uptime ?? 'N/A'}</span>
+            {t.health.version} <span className="text-slate-200">{health?.version ?? '1.0.0'}</span> · Uptime: <span className="text-slate-200">{health?.uptime ?? 'N/A'}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -55,7 +57,7 @@ export default function SystemHealthPanel() {
           <button
             onClick={() => void fetchHealth()}
             className="btn-ghost px-2.5 py-1 text-xs"
-            title="Обновить статус"
+            title={t.health.refreshTitle}
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.73-5.73" />
@@ -83,7 +85,7 @@ export default function SystemHealthPanel() {
             </div>
             {comp.latencyMs !== null && (
               <div className="mt-1 text-[11px] tabular-nums text-slate-500">
-                Задержка: {comp.latencyMs} мс
+                {t.health.latency(comp.latencyMs)}
               </div>
             )}
           </div>

@@ -1,4 +1,5 @@
 import { useWatchlist } from '@/hooks/useWatchlist'
+import { useLocale } from '@/hooks/useLocale'
 import type { UnifiedGameDto } from '@/types/catalog'
 
 interface GameCatalogCardProps {
@@ -7,9 +8,9 @@ interface GameCatalogCardProps {
   compact?: boolean
 }
 
-function formatPrice(game: UnifiedGameDto): string {
+function formatPrice(game: UnifiedGameDto, freeLabel: string): string {
   if (game.isFree || game.price <= 0) {
-    return 'БЕСПЛАТНО'
+    return freeLabel
   }
   return `$${game.price.toFixed(2)}`
 }
@@ -49,8 +50,6 @@ function formatReleaseYear(releaseDate: string | null): string {
   return Number.isNaN(year) ? '' : String(year)
 }
 
-const STEAMSPY_HINT = 'По данным SteamSpy, оценка, погрешность ±10%'
-
 const SOURCE_COLORS: Record<string, string> = {
   gog: 'bg-fuchsia-500',
   epic: 'bg-indigo-400',
@@ -84,9 +83,11 @@ function Stars({ rating }: { rating: number }) {
 
 export default function GameCatalogCard({ game, onOpen, compact = false }: GameCatalogCardProps) {
   const { isWatched, isMonitored, toggleWatch, toggleMonitor } = useWatchlist()
+  const { t } = useLocale()
   const matched = game.steamAppId != null
   const rating = game.rating != null ? game.rating / 20 : 0
-  const price = formatPrice(game)
+  const price = formatPrice(game, t.common.freeBadge)
+  const steamspyHint = t.catalog.steamspyHint
   const genre = game.genres[0]
   const releaseYear = compact ? '' : formatReleaseYear(game.releaseDate)
   const plainDescription = compact || !game.description ? '' : game.description.replace(/<[^>]*>/g, '')
@@ -149,7 +150,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
                 toggleWatch(game.id)
               }
             }}
-            title={watched ? 'Убрать из избранного' : 'В избранное'}
+            title={watched ? t.catalog.watchRemove : t.catalog.watchAdd}
             className={`flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
               watched ? 'hud-icon-active bg-rose-500/90 text-white' : 'bg-surface-950/70 text-slate-300 hover:text-rose-300'
             }`}
@@ -199,7 +200,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
               {rating > 0 ? rating.toFixed(1) : '—'}
             </span>
             {matched && game.ownersEstimate && (
-              <span className={`min-w-0 truncate text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`} title={STEAMSPY_HINT}>
+              <span className={`min-w-0 truncate text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`} title={steamspyHint}>
                 · {formatOwnersCompact(game.ownersEstimate)}
               </span>
             )}
@@ -215,7 +216,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
                     ? 'text-white'
                     : 'border border-surface-700/60 bg-surface-800/70 text-white'
               }`}
-              title={matched ? `Цена ${STEAMSPY_HINT}` : 'Метрика по SteamSpy отсутствует'}
+              title={matched ? t.catalog.priceTitle(steamspyHint) : t.catalog.noSteamspyMetrics}
             >
               {price}
             </span>
@@ -225,7 +226,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
         {monitored && (
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-success-400">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-success-400" />
-            Мониторинг включён
+            {t.catalog.monitoringOn}
           </div>
         )}
       </div>
@@ -244,7 +245,7 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
               toggleMonitor(game.steamAppId)
             }
           }}
-          title={monitored ? 'Отключить мониторинг' : 'Включить мониторинг'}
+          title={monitored ? t.catalog.monitorOff : t.catalog.monitorOn}
           className={`absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-all hover:scale-110 ${
             monitored ? 'hud-icon-active bg-success-500/90 text-surface-950' : 'bg-surface-950/70 text-slate-300 hover:text-success-300'
           }`}

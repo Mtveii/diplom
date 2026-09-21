@@ -11,6 +11,7 @@
 @import './styles/components/GameCatalogCard.css';
 @import './styles/components/GameMonitorTrendChart.css';
 @import './styles/components/HeatmapChart.css';
+@import './styles/components/LanguageSwitcher.css';
 @import './styles/components/Modal.css';
 @import './styles/components/NotificationBell.css';
 @import './styles/components/PageState.css';
@@ -18,7 +19,6 @@
 @import './styles/components/StatCard.css';
 @import './styles/components/SystemHealthPanel.css';
 @import './styles/components/Toaster.css';
-@import './styles/components/UserMenu.css';
 
 /* HUD System */
 @import './styles/hud-system.css';
@@ -28,7 +28,6 @@
 @import './styles/pages/DashboardPage.css';
 @import './styles/pages/GameDetailPage.css';
 @import './styles/pages/GameMonitorPage.css';
-@import './styles/pages/ProfilePage.css';
 @import './styles/pages/SettingsPage.css';
 
 @tailwind base;
@@ -85,6 +84,12 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+}
+
+/* Firefox ігнорує ::-webkit-scrollbar — ті ж тонкі темні смуги нативно */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(30, 58, 138, 0.8) transparent;
 }
 
 ::-webkit-scrollbar-thumb {

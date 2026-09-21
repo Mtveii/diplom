@@ -1,17 +1,17 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppLayout from '@/components/AppLayout'
 import AuthBootstrap from '@/components/AuthBootstrap'
 import CommandPalette from '@/components/CommandPalette'
-import ProtectedRoute from '@/components/ProtectedRoute'
+import RequireRole from '@/components/RequireRole'
 import Toaster from '@/components/Toaster'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import UsersPage from '@/pages/UsersPage'
+import UserDetailPage from '@/pages/UserDetailPage'
+import NotFoundPage from '@/pages/NotFoundPage'
 import CommandCenterPage from '@/pages/CommandCenterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
 import GameDetailPage from '@/pages/GameDetailPage'
-import LoginPage from '@/pages/LoginPage'
-import ProfilePage from '@/pages/ProfilePage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -19,90 +19,89 @@ export default function App() {
     <AuthBootstrap>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <DashboardPage />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
             }
           />
           <Route
             path="/members"
             element={
-              <ProtectedRoute>
-                <AppLayout>
+              <AppLayout>
+                <RequireRole path="/members">
                   <UsersPage />
-                </AppLayout>
-              </ProtectedRoute>
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/members/:id"
+            element={
+              <AppLayout>
+                <RequireRole path="/members">
+                  <UserDetailPage />
+                </RequireRole>
+              </AppLayout>
             }
           />
           <Route
             path="/games"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <GameMonitorPage />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppLayout>
+                <GameMonitorPage />
+              </AppLayout>
             }
           />
           <Route
             path="/games/:id"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <GameDetailPage />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppLayout>
+                <GameDetailPage />
+              </AppLayout>
             }
           />
           <Route
             path="/analytics"
             element={
-              <ProtectedRoute>
-                <AppLayout>
+              <AppLayout>
+                <RequireRole path="/analytics">
                   <AnalyticsPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ProfilePage />
-                </AppLayout>
-              </ProtectedRoute>
+                </RequireRole>
+              </AppLayout>
             }
           />
           <Route
             path="/settings"
             element={
-              <ProtectedRoute>
-                <AppLayout>
+              <AppLayout>
+                <RequireRole path="/settings">
                   <SettingsPage />
-                </AppLayout>
-              </ProtectedRoute>
+                </RequireRole>
+              </AppLayout>
             }
           />
           <Route
             path="/command-center"
             element={
-              <ProtectedRoute>
-                <AppLayout>
+              <AppLayout>
+                <RequireRole path="/command-center">
                   <CommandCenterPage />
-                </AppLayout>
-              </ProtectedRoute>
+                </RequireRole>
+              </AppLayout>
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="*"
+            element={
+              <AppLayout>
+                <NotFoundPage />
+              </AppLayout>
+            }
+          />
         </Routes>
         <Toaster />
         <CommandPalette />

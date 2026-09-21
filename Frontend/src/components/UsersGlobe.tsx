@@ -1,5 +1,6 @@
 import Globe from 'react-globe.gl'
 import { useGlobeUsers } from '../hooks/useGlobeUsers'
+import { useLocale } from '@/hooks/useLocale'
 
 interface Point {
   lat: number
@@ -9,8 +10,28 @@ interface Point {
   color: string
 }
 
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement('canvas')
+    return (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) !== null
+  } catch {
+    return false
+  }
+}
+
 export function UsersGlobe() {
+  const { t } = useLocale()
   const users = useGlobeUsers()
+
+  // Без WebGL three.js кидає при монтуванні — показуємо заглушку одразу,
+  // не чекаючи ErrorBoundary (див. CommandCenterPage).
+  if (!isWebGLAvailable()) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-slate-500">
+        {t.commandCenter.globeFallback}
+      </div>
+    )
+  }
 
   const points: Point[] = users.map((u) => ({
     lat: u.lat,

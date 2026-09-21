@@ -1,4 +1,5 @@
 import { useToastStore, type ToastType } from '@/store/toastStore'
+import { useLocale } from '@/hooks/useLocale'
 
 const STYLES: Record<ToastType, { icon: JSX.Element; border: string; text: string }> = {
   success: {
@@ -45,6 +46,7 @@ const STYLES: Record<ToastType, { icon: JSX.Element; border: string; text: strin
 
 export default function Toaster() {
   const { toasts, remove } = useToastStore()
+  const { t } = useLocale()
 
   return (
     <div className="pointer-events-none fixed bottom-20 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 lg:bottom-4">
@@ -64,7 +66,7 @@ export default function Toaster() {
             <button
               onClick={() => remove(item.id)}
               className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-surface-800 hover:text-slate-200"
-              aria-label="Закрыть уведомление"
+              aria-label={t.common.close}
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M18 6L6 18M6 6l12 12" />

@@ -1,12 +1,5 @@
-export type UserRole = 'Viewer' | 'Analyst' | 'Moderator' | 'SuperAdmin'
-
-/** Текущий пользователь (GET /Profile/me + роль из JWT). */
-export interface AuthUserProfile {
-  userId: string
-  email: string | null
-  username: string | null
-  role: string
-}
+/** Четыре роли админки. Источник — JWT claim (см. decodeRoleFromToken). */
+export type UserRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Analyst'
 
 /** Пользователь сети Slush (GET /Admin/users). */
 export interface AdminUserDto {

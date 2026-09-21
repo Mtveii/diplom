@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { useLocale } from '@/hooks/useLocale'
 
 interface ConfirmModalProps {
   open: boolean
@@ -18,14 +19,17 @@ export default function ConfirmModal({
   open,
   title,
   description,
-  confirmLabel = 'Подтвердить',
-  cancelLabel = 'Отмена',
+  confirmLabel,
+  cancelLabel,
   tone = 'danger',
   loading = false,
   children,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
+  const { t } = useLocale()
+  const resolvedConfirm = confirmLabel ?? t.common.confirm
+  const resolvedCancel = cancelLabel ?? t.common.cancel
   useEffect(() => {
     if (!open) {
       return
@@ -74,7 +78,7 @@ export default function ConfirmModal({
 
         <div className="mt-6 flex justify-end gap-2">
           <button onClick={onClose} disabled={loading} className="btn-ghost">
-            {cancelLabel}
+            {resolvedCancel}
           </button>
           <button
             onClick={onConfirm}
@@ -86,7 +90,7 @@ export default function ConfirmModal({
                 <path d="M21 12a9 9 0 1 1-6.22-8.56" />
               </svg>
             )}
-            {confirmLabel}
+            {resolvedConfirm}
           </button>
         </div>
       </div>

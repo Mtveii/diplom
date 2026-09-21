@@ -1,14 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-
-const LABELS: Record<string, string> = {
-  '': 'Дашборд',
-  members: 'Участники',
-  applications: 'Заявки',
-  games: 'Мониторинг игр',
-  analytics: 'Аналитика',
-  settings: 'Настройки',
-}
+import { useLocale } from '@/hooks/useLocale'
 
 interface BreadcrumbsProps {
   children?: ReactNode
@@ -16,14 +8,25 @@ interface BreadcrumbsProps {
 
 export default function Breadcrumbs({ children }: BreadcrumbsProps) {
   const { pathname } = useLocation()
+  const { t } = useLocale()
   const segments = pathname.split('/').filter(Boolean)
 
-  const renderCrumb = (key: string) => LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
+  const labels: Record<string, string> = {
+    '': t.nav.dashboard,
+    members: t.nav.users,
+    applications: t.nav.applications,
+    games: t.nav.games,
+    analytics: t.nav.analytics,
+    settings: t.nav.settings,
+    'command-center': t.nav.commandCenter,
+  }
+
+  const renderCrumb = (key: string) => labels[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
 
   return (
-    <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label="Хлебные крошки">
+    <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label={t.breadcrumbs.label}>
       <Link to="/" className="shrink-0 text-slate-400 transition-colors hover:text-white">
-        Дашборд
+        {t.nav.dashboard}
       </Link>
       {segments.map((segment, index) => {
         const isLast = index === segments.length - 1

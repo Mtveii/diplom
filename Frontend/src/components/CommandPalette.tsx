@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useLocale } from '@/hooks/useLocale'
+import { useAuthStore } from '@/store/authStore'
+import { canAccess } from '@/utils/role'
 
 interface PaletteItem {
   label: string
   keywords: string
+  /** Раздел для проверки доступа. Без него пункт виден всем. */
+  to?: string
   icon: JSX.Element
   action: () => void
 }
@@ -16,6 +21,8 @@ export default function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const { t } = useLocale()
+  const role = useAuthStore((state) => state.role)
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -45,52 +52,59 @@ export default function CommandPalette() {
   const items = useMemo<PaletteItem[]>(
     () => [
       {
-        label: 'Перейти на Дашборд',
-        keywords: 'dashboard home главная',
+        label: t.palette.goDashboard,
+        keywords: 'dashboard home головна дашборд',
+        to: '/',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l9-9 9 9" /><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" /></svg>,
         action: () => navigate('/'),
       },
       {
-        label: 'Перейти на Пользователи',
-        keywords: 'members users юзеры пользователи бан',
+        label: t.palette.goUsers,
+        keywords: 'members users користувачі бан',
+        to: '/members',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>,
         action: () => navigate('/members'),
       },
       {
-        label: 'Перейти на Мониторинг игр',
-        keywords: 'games catalog мониторинг игры каталог',
+        label: t.palette.goGames,
+        keywords: 'games catalog моніторинг ігри каталог мониторинг',
+        to: '/games',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h4" /><path d="M14 12h.01" /><path d="M17 12h.01" /><rect x="2" y="6" width="20" height="12" rx="2" /></svg>,
         action: () => navigate('/games'),
       },
       {
-        label: 'Перейти на Аналитику юзеров',
-        keywords: 'analytics users юзеры пользователи статистика активность гео',
+        label: t.palette.goAnalytics,
+        keywords: 'analytics users статистика активність гео аналітика',
+        to: '/analytics',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M7 13l4-4 4 4 5-5" /></svg>,
         action: () => navigate('/analytics'),
       },
       {
-        label: 'Перейти на Настройки',
-        keywords: 'settings role users notifications настройки',
+        label: t.palette.goSettings,
+        keywords: 'settings role users notifications налаштування',
+        to: '/settings',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
         action: () => navigate('/settings'),
       },
       {
-        label: 'Создать правило алерта',
-        keywords: 'create alert rule алерт мониторинг цена',
+        label: t.palette.createRule,
+        keywords: 'create alert rule алерт моніторинг ціна',
+        to: '/games',
         icon: <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
         action: () => navigate('/games'),
       },
     ],
-    [navigate],
+    [navigate, t],
   )
 
   const filtered = useMemo(() => {
+    const visible = items.filter((item) => !item.to || canAccess(item.to, role))
     const q = query.trim().toLowerCase()
     if (!q) {
-      return items
+      return visible
     }
-    return items.filter((item) => item.label.toLowerCase().includes(q) || item.keywords.includes(q))
-  }, [items, query])
+    return visible.filter((item) => item.label.toLowerCase().includes(q) || item.keywords.includes(q))
+  }, [items, query, role])
 
   useEffect(() => {
     setActiveIndex(0)
@@ -142,14 +156,14 @@ export default function CommandPalette() {
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search commands..."
+            placeholder={t.palette.placeholder}
             className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
           <kbd className="shrink-0 rounded-md border border-surface-700 bg-surface-800 px-1.5 py-0.5 text-[10px] text-slate-500">ESC</kbd>
         </div>
         <div className="max-h-80 overflow-y-auto p-1.5">
           {filtered.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">Ничего не найдено</div>
+            <div className="px-4 py-8 text-center text-sm text-slate-500">{t.palette.empty}</div>
           ) : (
             filtered.map((item, index) => (
               <button

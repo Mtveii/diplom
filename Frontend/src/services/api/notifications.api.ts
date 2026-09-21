@@ -37,10 +37,6 @@ export const notificationsApi = {
     httpClient
       .put(`/Notifications/channels/${channelPathKey(channel)}`, { isEnabled, configurationData: configJson })
       .then((r) => r.data),
-
-  sendTest: async (_channel: NotificationChannel): Promise<void> => {
-    console.info('[notificationsApi] sendTest: эндпоинт отсутствует в Slush API')
-  },
 }
 
 /** Steam-эндпоинты в Slush API отсутствуют — отдаём пустые данные. */
@@ -66,9 +62,4 @@ export const steamApi = {
   },
 }
 
-export const auditApi = {
-  getLogs: async (_params?: { page?: number; pageSize?: number; entityType?: string }) => {
-    console.info('[auditApi] Эндпоинт отсутствует в Slush API')
-    return { items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 }
-  },
-}
+

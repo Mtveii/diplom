@@ -1,5 +1,53 @@
 import { httpClient } from './httpClient'
+import { getLocaleDictionary } from '@/store/localeStore'
 import type { AlertHistoryDto, AlertRuleDto } from '@/types/alert'
+import type { NotificationChannel } from '@/types/notification'
+
+/**
+ * Маппинги строковых имён UI на int-enum Slush API.
+ * Порядок подтверждён историей проекта (backend/src/Domain/Enums):
+ * AlertRuleType { NoLoginFor = 0, ReviewDrop = 1, DiscountStarted = 2 },
+ * AlertCondition { LessThan = 0, GreaterThan = 1, Equals = 2 },
+ * NotificationChannel { Discord = 0, Telegram = 1, Email = 2, InApp = 3 }.
+ * NewsRelease в Slush API отсутствует (только 0–2) и из UI убран.
+ */
+const RULE_TYPE_TO_INT: Record<string, number> = {
+  NoLoginFor: 0,
+  ReviewDrop: 1,
+  DiscountStarted: 2,
+}
+
+const INT_TO_RULE_TYPE: Record<number, string> = {
+  0: 'NoLoginFor',
+  1: 'ReviewDrop',
+  2: 'DiscountStarted',
+}
+
+const CONDITION_TO_INT: Record<string, number> = {
+  LessThan: 0,
+  GreaterThan: 1,
+  Equals: 2,
+}
+
+const INT_TO_CONDITION: Record<number, string> = {
+  0: 'LessThan',
+  1: 'GreaterThan',
+  2: 'Equals',
+}
+
+const CHANNEL_TO_INT: Record<NotificationChannel, number> = {
+  Discord: 0,
+  Telegram: 1,
+  Email: 2,
+  InApp: 3,
+}
+
+const INT_TO_CHANNEL: Record<number, NotificationChannel> = {
+  0: 'Discord',
+  1: 'Telegram',
+  2: 'Email',
+  3: 'InApp',
+}
 
 /** Сырые формы Slush API. */
 interface SlushAlertHistoryDto {
@@ -31,56 +79,51 @@ function mapHistoryItem(item: SlushAlertHistoryDto): AlertHistoryDto {
   return {
     id: item.id,
     ruleId: null,
-    ruleName: item.ruleName ?? 'Без правила',
+    ruleName: item.ruleName ?? getLocaleDictionary().common.noRule,
     triggeredAt: item.timestamp,
     message: item.message ?? '',
     isRead: item.isRead,
   }
 }
 
+function mapRule(rule: SlushAlertRuleDto): AlertRuleDto {
+  return {
+    id: rule.id,
+    name: rule.ruleName ?? getLocaleDictionary().common.untitled,
+    type: INT_TO_RULE_TYPE[rule.ruleType] ?? String(rule.ruleType),
+    targetId: null,
+    condition: INT_TO_CONDITION[rule.condition] ?? String(rule.condition),
+    thresholdValue: rule.threshold,
+    channel: INT_TO_CHANNEL[rule.channel] ?? null,
+    isActive: rule.isEnabled,
+    createdAt: null,
+  }
+}
+
 export const alertsApi = {
   getRules: () =>
-    httpClient.get<SlushAlertRuleDto[]>('/Alerts/rules').then((r): AlertRuleDto[] =>
-      r.data.map((rule) => ({
-        id: rule.id,
-        name: rule.ruleName ?? 'Без названия',
-        type: String(rule.ruleType),
-        targetId: null,
-        condition: String(rule.condition),
-        thresholdValue: rule.threshold,
-        isActive: rule.isEnabled,
-        createdAt: null,
-      })),
-    ),
+    httpClient.get<SlushAlertRuleDto[]>('/Alerts/rules').then((r): AlertRuleDto[] => r.data.map(mapRule)),
 
   createRule: (request: {
     name: string
-    type?: string
+    type: string
     targetId?: string | null
-    condition?: string
+    condition: string
     thresholdValue: number
+    channel: NotificationChannel
     isActive: boolean
   }) =>
     httpClient
       .post<SlushAlertRuleDto>('/Alerts/rules', {
         ruleName: request.name,
-        ruleType: 0,
-        condition: 0,
+        ruleType: RULE_TYPE_TO_INT[request.type] ?? 0,
+        condition: CONDITION_TO_INT[request.condition] ?? 0,
         threshold: request.thresholdValue,
-        channel: 0,
+        channel: CHANNEL_TO_INT[request.channel] ?? 0,
         isEnabled: request.isActive,
       })
       .then((r) => r.data)
-      .then((rule): AlertRuleDto => ({
-        id: rule.id,
-        name: rule.ruleName ?? 'Без названия',
-        type: String(rule.ruleType),
-        targetId: null,
-        condition: String(rule.condition),
-        thresholdValue: rule.threshold,
-        isActive: rule.isEnabled,
-        createdAt: null,
-      })),
+      .then(mapRule),
 
   updateRule: async (_id: string): Promise<AlertRuleDto | null> => {
     console.info('[alertsApi] updateRule: эндпоинт отсутствует в Slush API')

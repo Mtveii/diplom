@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { UsersGlobe } from '../components/UsersGlobe'
 import { alertsApi } from '@/services/api/alerts.api'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
+import { useLocale } from '@/hooks/useLocale'
+import { formatDayMonth, formatNumber } from '@/utils/format'
 import type { AlertHistoryDto } from '@/types/alert'
 
 interface PersonnelStats {
@@ -21,11 +24,9 @@ interface BarItem {
   peak?: boolean
 }
 
-function formatNumber(value: number): string {
-  return value.toLocaleString('ru-RU')
-}
-
 export default function CommandCenterPage() {
+  const { t, locale } = useLocale()
+  const formatCount = (value: number): string => formatNumber(value, locale)
   const [timeStr, setTimeStr] = useState('15:21:03')
   const [dateStr, setDateStr] = useState('2026.08.18')
 
@@ -47,6 +48,7 @@ export default function CommandCenterPage() {
   )
   const [peakValue, setPeakValue] = useState(0)
   const [stream, setStream] = useState<AlertHistoryDto[]>([])
+  const [alertsTrend, setAlertsTrend] = useState<AlertHistoryDto[]>([])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -71,7 +73,7 @@ export default function CommandCenterPage() {
       const summaryPromise = monitoringApi.summary().catch(() => null)
       const usersPromise = usersApi.getUsers().catch(() => [] as never)
       const activityPromise = monitoringApi.activity('week').catch(() => [])
-      const historyPromise = alertsApi.getHistory(8).catch(() => [] as AlertHistoryDto[])
+      const historyPromise = alertsApi.getHistory(100).catch(() => [] as AlertHistoryDto[])
 
       const [summaryResult, usersResult, activityResult, historyResult] = await Promise.all([
         summaryPromise,
@@ -129,7 +131,9 @@ export default function CommandCenterPage() {
       }))
       setBars(withPeak)
       setPeakValue(maxValue)
-      setStream(Array.isArray(historyResult) ? historyResult : [])
+      const fullHistory = Array.isArray(historyResult) ? historyResult : []
+      setAlertsTrend(fullHistory)
+      setStream(fullHistory.slice(0, 8))
     }
 
     void load()
@@ -148,6 +152,27 @@ export default function CommandCenterPage() {
     if (Number.isFinite(stats.networkStability) && stats.networkStability > 0) return Math.min(100, stats.networkStability)
     return (stats.online / stats.total) * 100
   }, [stats.networkStability, stats.online, stats.total])
+
+  const alertsByDay = useMemo(() => {
+    const byDay = new Map<string, number>()
+    const offset = new Date().getTimezoneOffset() * 60_000
+    const now = Date.now()
+    for (let i = 13; i >= 0; i -= 1) {
+      byDay.set(new Date(now - i * 24 * 3600_000).toISOString().slice(0, 10), 0)
+    }
+    for (const alert of alertsTrend) {
+      const key = new Date(alert.triggeredAt).toISOString().slice(0, 10)
+      if (byDay.has(key)) {
+        byDay.set(key, (byDay.get(key) ?? 0) + 1)
+      }
+    }
+    return Array.from(byDay, ([day, count]) => ({
+      day: formatDayMonth(new Date(new Date(day).getTime() + offset), locale),
+      count,
+    }))
+  }, [alertsTrend, locale])
+
+  const trendMax = Math.max(1, ...alertsByDay.map((item) => item.count))
 
   const offlineCount = Math.max(0, stats.total - stats.online)
   const groupA = stats.online
@@ -170,14 +195,14 @@ export default function CommandCenterPage() {
           <div className="flex items-center gap-1.5 font-black tracking-wider text-xl italic bg-gradient-to-r from-orange-500 via-amber-400 to-primary-400 bg-clip-text text-transparent">
             <span>STEAM</span>
             <span className="text-xs font-normal not-italic text-slate-400 tracking-normal border-l border-slate-700 pl-2">
-              User Operations / Командный центр
+              {t.commandCenter.brandSub}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-6 text-xs text-slate-300">
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 uppercase tracking-widest text-[10px]">ВРЕМЯ</span>
+            <span className="text-slate-500 uppercase tracking-widest text-[10px]">{t.commandCenter.time}</span>
             <span className="font-mono font-bold text-primary-400">{timeStr}</span>
             <span className="font-mono text-slate-400">{dateStr}</span>
           </div>
@@ -189,7 +214,7 @@ export default function CommandCenterPage() {
             <span className="font-bold text-white">32°C</span>
           </div>
           <div className="flex items-center gap-1.5 bg-blue-950/60 border border-blue-800/50 px-2 py-0.5 rounded text-[11px]">
-            <span className="text-slate-400">СЕТЬ</span>
+            <span className="text-slate-400">{t.commandCenter.network}</span>
             <span className="font-bold text-success-400">99.9%</span>
           </div>
         </div>
@@ -209,26 +234,26 @@ export default function CommandCenterPage() {
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary-400 animate-pulse" />
-                Статистика личного состава
+                {t.commandCenter.personnel}
               </h3>
-              <span className="text-[10px] text-slate-500">Обзор / Статус</span>
+              <span className="text-[10px] text-slate-500">{t.commandCenter.overviewStatus}</span>
             </div>
 
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs border-b border-blue-950 pb-2.5">
               <div>
-                <div className="text-[10px] text-slate-400">Всего участников</div>
-                <div className="text-lg font-black text-white font-mono tracking-tight">{formatNumber(stats.total)}</div>
+                <div className="text-[10px] text-slate-400">{t.commandCenter.totalMembers}</div>
+                <div className="text-lg font-black text-white font-mono tracking-tight">{formatCount(stats.total)}</div>
               </div>
               <div>
-                <div className="text-[10px] text-slate-400">Активных в сети</div>
-                <div className="text-lg font-black text-success-400 font-mono tracking-tight">{formatNumber(stats.online)}</div>
+                <div className="text-[10px] text-slate-400">{t.commandCenter.activeOnline}</div>
+                <div className="text-lg font-black text-success-400 font-mono tracking-tight">{formatCount(stats.online)}</div>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 text-xs">
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-300">Ранги и роли</span>
+                  <span className="text-slate-300">{t.commandCenter.ranksRoles}</span>
                   <span className="font-mono text-primary-400">{rolePercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
@@ -238,7 +263,7 @@ export default function CommandCenterPage() {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-300">Сессии Steam</span>
+                  <span className="text-slate-300">{t.commandCenter.steamSessions}</span>
                   <span className="font-mono text-success-400">{sessionPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
@@ -248,7 +273,7 @@ export default function CommandCenterPage() {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-300">Готовность пользователей</span>
+                  <span className="text-slate-300">{t.commandCenter.userReadiness}</span>
                   <span className="font-mono text-amber-400">{readinessPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 w-full bg-blue-950 rounded-full overflow-hidden border border-blue-900/50">
@@ -258,10 +283,10 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-blue-950/60 pt-2">
-              <span>{formatNumber(Math.floor(stats.total * 0.08))}</span>
-              <span>{formatNumber(Math.floor(stats.total * 0.33))}</span>
-              <span>{formatNumber(Math.floor(stats.total * 0.66))}</span>
-              <span>{formatNumber(stats.total)}</span>
+              <span>{formatCount(Math.floor(stats.total * 0.08))}</span>
+              <span>{formatCount(Math.floor(stats.total * 0.33))}</span>
+              <span>{formatCount(Math.floor(stats.total * 0.66))}</span>
+              <span>{formatCount(stats.total)}</span>
             </div>
           </div>
 
@@ -275,7 +300,7 @@ export default function CommandCenterPage() {
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 mb-2 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-success-400" />
-                Распределение данных
+                {t.commandCenter.distribution}
               </h3>
             </div>
 
@@ -298,8 +323,8 @@ export default function CommandCenterPage() {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xs font-black text-white">{formatNumber(stats.total)}</span>
-                    <span className="text-[9px] text-slate-400">Всего</span>
+                    <span className="text-xs font-black text-white">{formatCount(stats.total)}</span>
+                    <span className="text-[9px] text-slate-400">{t.common.total}</span>
                   </div>
                 </div>
               </div>
@@ -307,16 +332,16 @@ export default function CommandCenterPage() {
               {/* Stats right of ring 1 */}
               <div className="flex flex-col gap-1.5 text-[11px]">
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Онлайн</span>
-                  <span className="font-mono font-bold text-white">{formatNumber(groupA)}</span>
+                  <span className="text-slate-400">{t.commandCenter.onlineLabel}</span>
+                  <span className="font-mono font-bold text-white">{formatCount(groupA)}</span>
                 </div>
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Оффлайн</span>
-                  <span className="font-mono font-bold text-white">{formatNumber(groupB)}</span>
+                  <span className="text-slate-400">{t.commandCenter.offlineLabel}</span>
+                  <span className="font-mono font-bold text-white">{formatCount(groupB)}</span>
                 </div>
                 <div className="flex justify-between pb-0.5">
-                  <span className="text-slate-400">Забанены</span>
-                  <span className="font-mono font-bold text-amber-400">{formatNumber(anomalies)}</span>
+                  <span className="text-slate-400">{t.commandCenter.bannedLabel}</span>
+                  <span className="font-mono font-bold text-amber-400">{formatCount(anomalies)}</span>
                 </div>
               </div>
             </div>
@@ -340,8 +365,8 @@ export default function CommandCenterPage() {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xs font-black text-white">{formatNumber(stats.playersToday)}</span>
-                    <span className="text-[9px] text-slate-400">Сессий</span>
+                    <span className="text-xs font-black text-white">{formatCount(stats.playersToday)}</span>
+                    <span className="text-[9px] text-slate-400">{t.commandCenter.sessionsLabel}</span>
                   </div>
                 </div>
               </div>
@@ -349,12 +374,12 @@ export default function CommandCenterPage() {
               {/* Stats right of ring 2 */}
               <div className="flex flex-col gap-1.5 text-[11px]">
                 <div className="flex justify-between border-b border-blue-950 pb-1">
-                  <span className="text-slate-400">Сегодня</span>
-                  <span className="font-mono font-bold text-white">{formatNumber(stats.playersToday)}</span>
+                  <span className="text-slate-400">{t.commandCenter.todayLabel}</span>
+                  <span className="font-mono font-bold text-white">{formatCount(stats.playersToday)}</span>
                 </div>
                 <div className="flex justify-between pb-0.5">
-                  <span className="text-slate-400">Пик онлайн</span>
-                  <span className="font-mono font-bold text-white">{formatNumber(stats.online)}</span>
+                  <span className="text-slate-400">{t.commandCenter.onlinePeak}</span>
+                  <span className="font-mono font-bold text-white">{formatCount(stats.online)}</span>
                 </div>
               </div>
             </div>
@@ -365,9 +390,19 @@ export default function CommandCenterPage() {
         <div className="col-span-6 relative rounded-xl border border-blue-900/60 bg-[#040812] overflow-hidden flex flex-col items-center justify-center p-4">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
 
-          {/* 3D Interactive Globe via react-globe.gl & SignalR */}
+          {/* 3D Interactive Globe via react-globe.gl & SignalR.
+              Локальна межа: без WebGL (або без unpkg-текстур) падає тільки
+              глобус, а не вся сторінка. */}
           <div className="absolute inset-0 z-0">
-            <UsersGlobe />
+            <ErrorBoundary
+              fallback={
+                <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-slate-500">
+                  {t.commandCenter.globeFallback}
+                </div>
+              }
+            >
+              <UsersGlobe />
+            </ErrorBoundary>
           </div>
         </div>
 
@@ -383,19 +418,19 @@ export default function CommandCenterPage() {
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-warning-400" />
-                Динамика активности
+                {t.commandCenter.activityDynamics}
               </h3>
               <span className="text-[10px] text-slate-400">
-                Пик за 11 дней: <strong className="text-white">{formatNumber(peakValue)}</strong>
+                {t.commandCenter.peak11(formatCount(peakValue))}
               </span>
             </div>
 
             <div className="flex items-center gap-4 text-[10px] text-slate-400 mb-2">
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-orange-500" /> Онлайн
+                <span className="h-2 w-2 rounded-sm bg-orange-500" /> {t.commandCenter.legendOnline}
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-success-400" /> Новые аккаунты
+                <span className="h-2 w-2 rounded-sm bg-success-400" /> {t.commandCenter.legendNew}
               </span>
             </div>
 
@@ -417,6 +452,38 @@ export default function CommandCenterPage() {
             </div>
           </div>
 
+          {/* Mini alerts trend — 14 днів */}
+          <div className="relative rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
+            <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
+            <div className="absolute bottom-0 left-0 h-2 w-2 border-b-2 border-l-2 border-primary-400" />
+            <div className="absolute bottom-0 right-0 h-2 w-2 border-b-2 border-r-2 border-primary-400" />
+
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-danger-400" />
+                {t.trend.title}
+              </h3>
+            </div>
+
+            {alertsByDay.every((item) => item.count === 0) ? (
+              <div className="py-3 text-center text-[11px] text-slate-500">{t.trend.empty}</div>
+            ) : (
+              <div className="flex h-20 items-stretch justify-between gap-1">
+                {alertsByDay.map((item, index) => (
+                  <div key={item.day} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                    <div
+                      className="w-full max-w-3 rounded-t bg-primary-500/80"
+                      style={{ height: `${Math.max(3, (item.count / trendMax) * 100)}%` }}
+                      title={`${item.day}: ${item.count}`}
+                    />
+                    <span className="truncate text-[8px] text-slate-600">{index % 2 === 0 ? item.day : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Panel 4: Detailed Flight / Activity Stream Table — мониторинг БД */}
           <div className="relative flex-1 rounded-xl border border-blue-900/60 bg-blue-950/20 p-3 backdrop-blur-md shadow-lg flex flex-col min-h-0">
             <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
@@ -427,20 +494,20 @@ export default function CommandCenterPage() {
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary-400" />
-                Журнал активности (Activity Stream)
+                {t.commandCenter.activityLog}
               </h3>
             </div>
 
             <div className="grid grid-cols-12 text-[10px] text-slate-400 border-b border-blue-900/60 pb-1 px-1 font-semibold">
-              <span className="col-span-3">ДАТА</span>
-              <span className="col-span-3">КОД</span>
-              <span className="col-span-5">МАРШРУТ / СЕРВЕР</span>
-              <span className="col-span-1 text-right">АКТ</span>
+              <span className="col-span-3">{t.commandCenter.colDate}</span>
+              <span className="col-span-3">{t.commandCenter.colCode}</span>
+              <span className="col-span-5">{t.commandCenter.colRoute}</span>
+              <span className="col-span-1 text-right">{t.commandCenter.colAct}</span>
             </div>
 
             <div className="mt-1 flex-1 overflow-y-auto pr-1 flex flex-col gap-1 text-[11px]">
               {stream.length === 0 ? (
-                <div className="py-6 text-center text-[11px] text-slate-500">Нет данных — БД пуста или недоступна (0)</div>
+                <div className="py-6 text-center text-[11px] text-slate-500">{t.commandCenter.emptyStream}</div>
               ) : (
                 stream.map((row) => {
                   const date = new Date(row.triggeredAt)

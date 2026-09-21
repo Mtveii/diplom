@@ -3,9 +3,12 @@ import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { alertsApi } from '@/services/api/alerts.api'
 import { offReconnected, offReconnecting, onReconnected, onReconnecting } from '@/services/signalr'
+import { useLocale } from '@/hooks/useLocale'
+import { useAuthStore } from '@/store/authStore'
+import { canAccess, getRoleLevel } from '@/utils/role'
 import Breadcrumbs from './Breadcrumbs'
+import LanguageSwitcher from './LanguageSwitcher'
 import NotificationBell from './NotificationBell'
-import UserMenu from './UserMenu'
 
 interface NavItem {
   to: string
@@ -16,10 +19,12 @@ interface NavItem {
 
 const iconClass = 'h-[18px] w-[18px]'
 
-const navItems: NavItem[] = [
+function useNavItems(): NavItem[] {
+  const { t } = useLocale()
+  return [
   {
     to: '/',
-    label: 'Дашборд',
+    label: t.nav.dashboard,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 12l9-9 9 9" />
@@ -29,7 +34,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/members',
-    label: 'Пользователи',
+    label: t.nav.users,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -41,7 +46,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/games',
-    label: 'Мониторинг игр',
+    label: t.nav.games,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 12h4" />
@@ -56,7 +61,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/analytics',
-    label: 'Аналитика юзеров',
+    label: t.nav.analytics,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v16a2 2 0 0 0 2 2h16" />
@@ -66,7 +71,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/command-center',
-    label: 'Командный центр',
+    label: t.nav.commandCenter,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
@@ -77,7 +82,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/settings',
-    label: 'Настройки',
+    label: t.nav.settings,
     icon: (
       <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -85,7 +90,8 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-]
+  ]
+}
 
 interface AppLayoutProps {
   children: ReactNode
@@ -116,6 +122,20 @@ function useConnectionStatus(): ConnectionStatus {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
+  const { t } = useLocale()
+  const role = useAuthStore((state) => state.role)
+  const navItems = useNavItems().filter((item) => canAccess(item.to, role))
+  const roleLevel = getRoleLevel(role)
+  const roleDot =
+    roleLevel >= 4
+      ? 'bg-amber-400'
+      : roleLevel === 3
+        ? 'bg-primary-400'
+        : roleLevel === 2
+          ? 'bg-sky-400'
+          : roleLevel === 1
+            ? 'bg-slate-400'
+            : 'bg-slate-600'
   const [alertBadge, setAlertBadge] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const connectionStatus = useConnectionStatus()
@@ -143,7 +163,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <button
               onClick={() => setMobileNavOpen((prev) => !prev)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-700 text-slate-300 transition-colors hover:bg-surface-800 lg:hidden"
-              aria-label="Меню навигации"
+              aria-label={t.nav.menuNav}
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 {mobileNavOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
@@ -159,8 +179,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </svg>
               </div>
               <div className="hidden sm:block">
-                <div className="text-sm font-bold tracking-tight text-white">Steam Users Admin</div>
-                <div className="text-[10px] text-slate-400">Dashboard</div>
+                <div className="text-sm font-bold tracking-tight text-white">{t.common.appName}</div>
+                <div className="text-[10px] text-slate-400">{t.nav.brandSubtitle}</div>
               </div>
             </div>
             <div className="hidden min-w-0 lg:block lg:ml-4">
@@ -197,6 +217,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           <div className="flex items-center gap-4">
             <span
+              title={role ?? t.nav.guest}
+              className="hidden items-center gap-1.5 rounded-lg border border-surface-700 bg-surface-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-200 sm:flex"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${roleDot}`} />
+              {role ? `${t.nav.accessLevel} ${roleLevel} · ${role}` : t.nav.guest}
+            </span>
+            <span
               className={`hidden items-center gap-1.5 text-xs sm:flex ${
                 connectionStatus === 'live' ? 'text-success-400' : 'text-warning-400'
               }`}
@@ -206,10 +233,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   connectionStatus === 'live' ? '' : connectionStatus === 'reconnecting' ? 'live-dot--warn' : 'live-dot--off'
                 }`}
               />
-              {connectionStatus === 'live' ? 'Live' : connectionStatus === 'reconnecting' ? 'Reconnecting...' : 'Offline'}
+              {connectionStatus === 'live' ? t.nav.live : connectionStatus === 'reconnecting' ? t.nav.reconnecting : t.nav.offline}
             </span>
+            <LanguageSwitcher compact />
             <NotificationBell />
-            <UserMenu panelPosition="right" />
           </div>
         </header>
 

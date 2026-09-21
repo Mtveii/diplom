@@ -34,6 +34,14 @@ interface SlushGameTrendPointDto {
   playerCount: number
 }
 
+/** Період графіків дашборда. Бекенд знає лише day/week/month — решта мапиться і бакетиться на клієнті. */
+export type MonitoringPeriod = 'day' | 'week' | 'month' | 'days60' | 'days90' | 'all'
+
+function toBackendPeriod(period: MonitoringPeriod): 'day' | 'week' | 'month' {
+  if (period === 'day' || period === 'week') return period
+  return 'month'
+}
+
 export const monitoringApi = {
   summary: async (): Promise<DashboardSummaryDto> => {
     const raw = await httpClient.get<SlushSummaryDto>('/Monitoring/summary').then((r) => r.data)
@@ -52,9 +60,9 @@ export const monitoringApi = {
   onlineUsers: () =>
     httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data),
 
-  activity: (period: 'day' | 'week' | 'month') =>
+  activity: (period: MonitoringPeriod) =>
     httpClient
-      .get<SlushActivityPointDto[]>('/Monitoring/activity-history', { params: { period } })
+      .get<SlushActivityPointDto[]>('/Monitoring/activity-history', { params: { period: toBackendPeriod(period) } })
       .then((r): ActivityPointDto[] => r.data.map((point) => ({ timestamp: point.timestamp, onlineCount: point.activeCount }))),
 
   heatmap: (_days = 30) =>

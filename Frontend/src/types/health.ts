@@ -8,7 +8,7 @@ export interface HealthComponentDto {
 export interface SystemHealthDto {
   status: 'Healthy' | 'Degraded'
   timestampUtc: string
-  uptime: string
-  version: string
+  uptime: string | null
+  version: string | null
   components: HealthComponentDto[]
 }

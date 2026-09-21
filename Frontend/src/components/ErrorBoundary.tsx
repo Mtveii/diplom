@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { getLocaleDictionary } from '@/store/localeStore'
 
 interface Props {
   children: ReactNode
@@ -24,18 +25,19 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback
+      const t = getLocaleDictionary().errorBoundary
       return (
         <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-          <h2 className="text-lg font-bold text-white">Что-то пошло не так</h2>
-          <p className="max-w-md text-sm text-slate-400">{this.state.error?.message ?? 'Неизвестная ошибка'}</p>
+          <h2 className="text-lg font-bold text-white">{t.title}</h2>
+          <p className="max-w-md text-sm text-slate-400">{this.state.error?.message ?? t.unknown}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             className="btn-primary"
           >
-            Попробовать снова
+            {t.retry}
           </button>
           <button onClick={() => window.location.reload()} className="btn-ghost">
-            Перезагрузить страницу
+            {t.reload}
           </button>
         </div>
       )

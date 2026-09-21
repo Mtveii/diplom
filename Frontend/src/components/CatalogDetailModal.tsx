@@ -1,5 +1,6 @@
 ﻿import Modal from '@/components/Modal'
 import { useGogGameDetails } from '@/hooks/useGogGameDetails'
+import { useLocale } from '@/hooks/useLocale'
 import type { UnifiedGameDto } from '@/types/catalog'
 
 interface CatalogDetailModalProps {
@@ -16,26 +17,26 @@ function formatOwners(owners: string | null): string {
   return owners.replace(/\.\./g, '–')
 }
 
-const REQ_LABELS: Record<string, string> = {
-  os: 'ОС',
-  cpu: 'Процессор',
-  processor: 'Процессор',
-  memory: 'Память',
-  ram: 'Память',
-  graphics: 'Видеокарта',
-  gpu: 'Видеокарта',
-  video: 'Видеокарта',
-  directx: 'DirectX',
-  storage: 'Диск',
-  'hard drive': 'Диск',
-  'sound card': 'Звук',
-  'other requirements': 'Другое',
-  other: 'Другое',
-}
-
 const REQ_LABEL_PATTERN = /^([A-Za-zА-Яа-яЁё][^:：]{1,24}?)\s*[:：]\s*(.+)$/
 
 function GogRequirements({ text }: { text: string }) {
+  const { t } = useLocale()
+  const reqLabels: Record<string, string> = {
+    os: t.catalog.reqOs,
+    cpu: t.catalog.reqCpu,
+    processor: t.catalog.reqCpu,
+    memory: t.catalog.reqMemory,
+    ram: t.catalog.reqMemory,
+    graphics: t.catalog.reqGpu,
+    gpu: t.catalog.reqGpu,
+    video: t.catalog.reqGpu,
+    directx: 'DirectX',
+    storage: t.catalog.reqStorage,
+    'hard drive': t.catalog.reqStorage,
+    'sound card': t.catalog.reqAudio,
+    'other requirements': t.catalog.reqOther,
+    other: t.catalog.reqOther,
+  }
   const rows: Array<{ label: string; value: string }> = []
   const notes: string[] = []
   for (const raw of text.split(/\r?\n/)) {
@@ -44,7 +45,7 @@ function GogRequirements({ text }: { text: string }) {
       continue
     }
     const match = REQ_LABEL_PATTERN.exec(line)
-    const label = match ? REQ_LABELS[match[1].trim().toLowerCase()] : undefined
+    const label = match ? reqLabels[match[1].trim().toLowerCase()] : undefined
     if (match && label) {
       rows.push({ label, value: match[2].trim() })
     } else {
@@ -98,6 +99,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default function CatalogDetailModal({ game, onClose, onShowMonitor, onOpenDetail }: CatalogDetailModalProps) {
+  const { t } = useLocale()
   const matched = game.steamAppId != null
   const rating = game.rating != null ? game.rating / 20 : 0
   const { details: gogDetails, loading: gogLoading, failed: gogFailed } = useGogGameDetails(game.sourceUrls.gog)
@@ -127,21 +129,21 @@ export default function CatalogDetailModal({ game, onClose, onShowMonitor, onOpe
                   <span className="text-sm font-bold text-white">{rating.toFixed(1)}</span>
                 </>
               )}
-              <span title="По данным SteamSpy, оценка, погрешность ±10%">
+              <span title={t.catalog.steamspyHint}>
                 {formatOwners(game.ownersEstimate)}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(game.genres.length > 0 ? game.genres : ['без жанра']).map((genre) => (
+              {(game.genres.length > 0 ? game.genres : [t.catalog.noGenre]).map((genre) => (
                 <span key={genre} className="badge border border-surface-700 bg-surface-800/60 text-slate-300">
                   {genre}
                 </span>
               ))}
               <span className="badge border border-surface-700 bg-surface-800/60 text-slate-300">
-                {game.platforms.length > 0 ? game.platforms.join(' / ') : 'платформа n/a'}
+                {game.platforms.length > 0 ? game.platforms.join(' / ') : t.catalog.platformNa}
               </span>
               {matched && (
-                <span className="badge border-0 bg-emerald-500/90 text-white" title="По данным SteamSpy, оценка, погрешность ±10%">
+                <span className="badge border-0 bg-emerald-500/90 text-white" title={t.catalog.steamspyHint}>
                   Steam App {game.steamAppId}
                 </span>
               )}
@@ -152,53 +154,51 @@ export default function CatalogDetailModal({ game, onClose, onShowMonitor, onOpe
                   key={source}
                   className="badge border-0 bg-primary-500/15 px-1.5 py-0.5 text-[10px] text-primary-300"
                 >
-                  Источник: {SOURCE_LABELS[source] ?? source}
+                  {t.catalog.sourcePrefix} {SOURCE_LABELS[source] ?? source}
                 </span>
               ))}
             </div>
             <div className="max-h-48 overflow-y-auto rounded-xl border border-surface-700/40 bg-surface-900/40 p-3 pr-1">
-              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{game.description ?? 'Нет описания'}</p>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{game.description ?? t.catalog.noDescription}</p>
             </div>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-slate-400 sm:grid-cols-2">
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500">Разработчик</dt>
+                <dt className="shrink-0 text-slate-500">{t.catalog.dev}</dt>
                 <dd className="text-right">{game.developer ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500">Издатель</dt>
+                <dt className="shrink-0 text-slate-500">{t.catalog.publisher}</dt>
                 <dd className="text-right">{game.publisher ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500">Релиз</dt>
+                <dt className="shrink-0 text-slate-500">{t.catalog.release}</dt>
                 <dd className="text-right">{game.releaseDate ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500" title="По данным SteamSpy, оценка, погрешность ±10%">Владельцев</dt>
-                <dd className="text-right">{matched ? formatOwners(game.ownersEstimate) : 'нет данных'}</dd>
+                <dt className="shrink-0 text-slate-500" title={t.catalog.steamspyHint}>{t.catalog.owners}</dt>
+                <dd className="text-right">{matched ? formatOwners(game.ownersEstimate) : t.catalog.noData}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500" title="По данным SteamSpy, оценка, погрешность ±10%">Рейтинг</dt>
+                <dt className="shrink-0 text-slate-500" title={t.catalog.steamspyHint}>{t.catalog.rating}</dt>
                 <dd className="text-right">
                   {matched && game.rating != null
                     ? `★ ${(game.rating / 20).toFixed(1)}`
-                    : 'нет данных'}
+                    : t.catalog.noData}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="shrink-0 text-slate-500" title="По данным SteamSpy, оценка, погрешность ±10%">Цена</dt>
+                <dt className="shrink-0 text-slate-500" title={t.catalog.steamspyHint}>{t.catalog.price}</dt>
                 <dd className="text-right">
-                  {game.isFree || game.price <= 0 ? 'Бесплатно' : `$${game.price.toFixed(2)}`}
+                  {game.isFree || game.price <= 0 ? t.common.free : `$${game.price.toFixed(2)}`}
                 </dd>
               </div>
             </dl>
-            {matched && game.steamAppId != null && (
-              <button onClick={onShowMonitor} className="btn-primary mt-2 self-start">
-                Мониторинг и алерты (App {game.steamAppId})
-              </button>
-            )}
+            <button onClick={onShowMonitor} className="btn-primary mt-2 self-start">
+              {t.catalog.tabMonitoring}
+            </button>
             {onOpenDetail && (
               <button onClick={onOpenDetail} className="btn-ghost mt-2 self-start">
-                Полная страница игры
+                {t.catalog.fullPage}
               </button>
             )}
           </div>
@@ -213,31 +213,31 @@ export default function CatalogDetailModal({ game, onClose, onShowMonitor, onOpe
                 rel="noreferrer"
                 className="btn-ghost"
               >
-                Открыть в Steam
+                {t.catalog.openSteam}
               </a>
             )}
             {game.sourceUrls.gog && (
               <a href={game.sourceUrls.gog} target="_blank" rel="noreferrer" className="btn-ghost">
-                Открыть на GOG
+                {t.catalog.openGog}
               </a>
             )}
             {game.sourceUrls.freetogame && (
               <a href={game.sourceUrls.freetogame} target="_blank" rel="noreferrer" className="btn-ghost">
-                Открыть на FreeToGame
+                {t.catalog.openF2g}
               </a>
             )}
           </div>
         )}
 
         {gogLoading && (
-          <p className="text-xs text-slate-500">Загружаем детали со страницы GOG…</p>
+          <p className="text-xs text-slate-500">{t.catalog.gogLoading}</p>
         )}
 
         {!gogLoading && gogDetails?.description && (
           <div>
             <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-200">
               <span className="h-2 w-2 rounded-full bg-fuchsia-400" />
-              Описание (GOG)
+              {t.catalog.gogDescription}
             </h3>
             <div className="max-h-64 overflow-y-auto rounded-xl border border-surface-700/40 bg-surface-900/40 p-3.5 pr-1">
               <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{gogDetails.description}</p>
@@ -249,25 +249,25 @@ export default function CatalogDetailModal({ game, onClose, onShowMonitor, onOpe
           <div>
             <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-200">
               <span className="h-2 w-2 rounded-full bg-sky-400" />
-              Системные требования (GOG)
+              {t.catalog.gogRequirements}
             </h3>
             <GogRequirements text={gogDetails.systemRequirements} />
           </div>
         )}
 
         {!gogLoading && gogFailed && (
-          <p className="text-xs text-slate-500">Детали GOG временно недоступны</p>
+          <p className="text-xs text-slate-500">{t.catalog.gogFailed}</p>
         )}
 
         {game.gallery.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-slate-200">Скриншоты</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-200">{t.catalog.screenshots}</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {game.gallery.map((screenshot) => (
                 <img
                   key={screenshot}
                   src={screenshot}
-                  alt={`Скриншот ${game.name}`}
+                  alt={t.catalog.screenshotAlt(game.name)}
                   loading="lazy"
                   className="aspect-video w-full rounded-xl border border-surface-700/60 object-cover"
                 />

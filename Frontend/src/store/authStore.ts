@@ -1,20 +1,18 @@
 import { create } from 'zustand'
-import type { AuthUserProfile } from '@/types/auth'
+import { decodeRoleFromToken } from '@/utils/role'
 
 const TOKEN_STORAGE_KEY = 'slush-access-token'
 
 interface AuthState {
   accessToken: string | null
-  user: AuthUserProfile | null
+  /** Роль из JWT (сырая строка). null — анонимно или роль не распознана. */
+  role: string | null
   setAccessToken: (token: string) => void
   clearAccessToken: () => void
-  setUser: (user: AuthUserProfile | null) => void
-  logout: () => void
-  isTokenExpired: (token: string | null) => boolean
 }
 
-function isTokenExpired(token: string | null): boolean {
-  if (!token) return true
+/** Проверка exp без JWT-библиотек: просроченный токен не храним. */
+export function isTokenExpired(token: string): boolean {
   try {
     const base64 = token.split('.')[1] ?? ''
     const normalized = base64.replace(/-/g, '+').replace(/_/g, '/')
@@ -36,17 +34,18 @@ function readInitialToken(): string | null {
     }
     return raw
   } catch (err) {
-    console.warn('[authStore] localStorage недоступен — токен не восстановлен', err)
+    console.warn('[authStore] localStorage недоступен — начинаем без токена', err)
     return null
   }
 }
 
+const initialToken = readInitialToken()
+
 export const useAuthStore = create<AuthState>()((set) => ({
-  accessToken: readInitialToken(),
-  user: null,
+  accessToken: initialToken,
+  role: decodeRoleFromToken(initialToken),
   setAccessToken: (token) => {
     if (isTokenExpired(token)) {
-      console.warn('[authStore] Попытка сохранить просроченный токен — отклонено')
       return
     }
     try {
@@ -54,24 +53,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
     } catch (err) {
       console.warn('[authStore] Не удалось сохранить токен', err)
     }
-    set({ accessToken: token })
+    set({ accessToken: token, role: decodeRoleFromToken(token) })
   },
   clearAccessToken: () => {
     try {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY)
-    } catch (err) {
-      console.warn('[authStore] Не удалось удалить токен', err)
+    } catch {
+      // ignore — чистим состояние в любом случае
     }
-    set({ accessToken: null, user: null })
+    set({ accessToken: null, role: null })
   },
-  setUser: (user) => set({ user }),
-  logout: () => {
-    try {
-      window.localStorage.removeItem(TOKEN_STORAGE_KEY)
-    } catch (err) {
-      console.warn('[authStore] Не удалось удалить токен при выходе', err)
-    }
-    set({ accessToken: null, user: null })
-  },
-  isTokenExpired,
 }))

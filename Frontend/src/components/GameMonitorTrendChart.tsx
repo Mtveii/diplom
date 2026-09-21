@@ -8,20 +8,22 @@ import {
   YAxis,
 } from 'recharts'
 import { chartTheme } from '@/styles/chartTheme'
+import { useLocale } from '@/hooks/useLocale'
 
 interface GameMonitorTrendChartProps {
   alertsByDay: Array<{ day: string; count: number }>
 }
 
 export default function GameMonitorTrendChart({ alertsByDay }: GameMonitorTrendChartProps) {
+  const { t } = useLocale()
   return (
     <div className="card card-hud p-5">
       <div className="card-header-hud">
-        <h3 className="card-header-hud__title">Срабатывания алертов за 14 дней</h3>
+        <h3 className="card-header-hud__title">{t.trend.title}</h3>
       </div>
       {alertsByDay.every((item) => item.count === 0) ? (
         <div className="rounded-xl border border-dashed border-surface-700 px-4 py-6 text-center text-xs text-slate-500">
-          За последние 14 дней алертов не зафиксировано
+          {t.trend.empty}
         </div>
       ) : (
         <div className="h-44">
@@ -40,7 +42,7 @@ export default function GameMonitorTrendChart({ alertsByDay }: GameMonitorTrendC
                   fontSize: chartTheme.tooltip.fontSize,
                 }}
               />
-              <Bar dataKey="count" name="Алерты" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="count" name={t.trend.series} fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>

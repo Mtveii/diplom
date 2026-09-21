@@ -66,3 +66,37 @@ export interface GogGameDetailsDto {
   description: string | null
   systemRequirements: string | null
 }
+
+export interface GameDetailsDlcDto {
+  id: string | null
+  title: string | null
+  description: string | null
+  image: string | null
+  price: number
+}
+
+export interface GameDetailsReviewDto {
+  username: string | null
+  score: number | null
+  text: string | null
+  date: string | null
+}
+
+/** Полные детали игры: GET /api/GameCatalog/{appId} (Slush API). */
+export interface GameDetailsDto {
+  id: string | null
+  title: string | null
+  description: string | null
+  thumbnail: string | null
+  developer: string | null
+  publisher: string | null
+  releaseDate: string | null
+  screenshots: string[]
+  price: number
+  oldPrice: number
+  discountPercent: number
+  tags: string[]
+  dlcs: GameDetailsDlcDto[]
+  averageRating: number | null
+  reviews: GameDetailsReviewDto[]
+}

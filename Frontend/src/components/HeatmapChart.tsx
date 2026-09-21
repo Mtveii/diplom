@@ -1,6 +1,5 @@
 import type { HeatmapPointDto } from '@/types/monitoring'
-
-const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+import { useLocale } from '@/hooks/useLocale'
 
 interface HeatmapChartProps {
   data: HeatmapPointDto[]
@@ -11,6 +10,8 @@ interface HeatmapChartProps {
  * Автоматически масштабируется на 100% ширины контейнера без горизонтальных скроллов.
  */
 export default function HeatmapChart({ data }: HeatmapChartProps) {
+  const { t } = useLocale()
+  const daysOfWeek = t.heatmap.days
   const max = Math.max(1, ...data.map((point) => point.activeCount))
   const byCell = new Map<string, number>()
   for (const point of data) {
@@ -39,7 +40,7 @@ export default function HeatmapChart({ data }: HeatmapChartProps) {
   return (
     <div className="card card-hud p-5 w-full">
       <div className="card-header-hud mb-4 flex-wrap">
-        <h3 className="card-header-hud__title">Heatmap активности (онлайн и новые аккаунты)</h3>
+        <h3 className="card-header-hud__title">{t.heatmap.title}</h3>
         <div className="card-header-hud__subtitle flex items-center gap-1.5 text-[10px]">
           <span className="rounded px-1.5 py-0.5 bg-surface-800 text-slate-400">0</span>
           <span className="rounded px-1.5 py-0.5 bg-blue-950 text-blue-300">25%</span>
@@ -63,7 +64,7 @@ export default function HeatmapChart({ data }: HeatmapChartProps) {
               <div className="text-xs font-medium text-slate-400">{day}</div>
               {hours.map((hour) => {
                 const value = byCell.get(`${dayIndex}:${hour}`) ?? 0
-                const title = `${day} ${hour}:00 — активных: ${value}`
+                const title = t.heatmap.cellTitle(day, hour, value)
                 return (
                   <div
                     key={hour}
