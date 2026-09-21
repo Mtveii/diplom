@@ -2,14 +2,15 @@ import { httpClient } from './httpClient'
 import { getLocaleDictionary } from '@/store/localeStore'
 import type { GameDetailsDto, GogGameDetailsDto, UnifiedCatalogPageDto, UnifiedGameDto } from '@/types/catalog'
 
-/** Сырая форма игры из Slush API (CheapShark). */
+/** Сырая форма игры из Slush API (CheapShark). Поле картинки — thumbnail (coverUrl оставлен как запасной). */
 interface SlushGameDto {
   id: string
   title: string | null
   source: number
   price: number
   discountPercent: number
-  coverUrl: string | null
+  thumbnail: string | null
+  coverUrl?: string | null
   storeUrl: string | null
 }
 
@@ -30,7 +31,7 @@ function mapSlushGame(game: SlushGameDto): UnifiedGameDto {
     price: game.price,
     isFree: game.price === 0,
     description: null,
-    image: game.coverUrl,
+    image: game.thumbnail ?? game.coverUrl ?? null,
     gallery: [],
     developer: null,
     publisher: null,

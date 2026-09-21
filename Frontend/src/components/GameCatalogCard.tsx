@@ -106,6 +106,10 @@ export default function GameCatalogCard({ game, onOpen, compact = false }: GameC
             src={game.image}
             alt={game.name}
             loading="lazy"
+            onError={(event) => {
+              // Битый URL (игру сняли с CDN) — прячем, остаётся заглушка с буквой.
+              event.currentTarget.style.display = 'none'
+            }}
             className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
