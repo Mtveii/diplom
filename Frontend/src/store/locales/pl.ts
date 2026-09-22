@@ -201,6 +201,7 @@ export const pl: Dictionary = {
     unknown: 'Nieznane',
   },
   forbidden: {
+    authHint: 'Zaloguj się przez Slush, aby kontynuować',
     title: '403',
     heading: 'Brak dostępu',
     hint: 'Twoja rola nie wystarcza do tej sekcji',

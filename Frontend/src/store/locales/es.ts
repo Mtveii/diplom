@@ -189,6 +189,7 @@ export const es: Dictionary = {
     unknown: 'Desconocido',
   },
   forbidden: {
+    authHint: 'Inicia sesión vía Slush para continuar',
     title: '403',
     heading: 'Acceso denegado',
     hint: 'Tu rol no alcanza para esta sección',

@@ -7,6 +7,7 @@ import {
   canViewSecurity,
   decodeIdentityFromToken,
   decodeRoleFromToken,
+  extractTokenFromUrl,
   getRoleLevel,
   hasOtherEffectiveSuperAdmin,
   isEffectiveSuperAdmin,
@@ -153,6 +154,28 @@ describe('decodeIdentityFromToken', () => {
     expect(decodeIdentityFromToken(fakeJwt({ unique_name: 'x' }))).toBeNull()
     expect(decodeIdentityFromToken(null)).toBeNull()
     expect(decodeIdentityFromToken('broken')).toBeNull()
+  })
+})
+
+describe('extractTokenFromUrl', () => {
+  it('reads ?token=', () => {
+    expect(extractTokenFromUrl('?token=abc.def.ghi', '')).toBe('abc.def.ghi')
+  })
+
+  it('reads #access_token= and #token=', () => {
+    expect(extractTokenFromUrl('', '#access_token=AAA')).toBe('AAA')
+    expect(extractTokenFromUrl('', '#token=BBB&other=1')).toBe('BBB')
+  })
+
+  it('prefers query over fragment', () => {
+    expect(extractTokenFromUrl('?token=Q', '#access_token=F')).toBe('Q')
+  })
+
+  it('returns null when absent or empty', () => {
+    expect(extractTokenFromUrl('', '')).toBeNull()
+    expect(extractTokenFromUrl('?token=', '')).toBeNull()
+    expect(extractTokenFromUrl('', '#access_token=')).toBeNull()
+    expect(extractTokenFromUrl('?a=1', '#b=2')).toBeNull()
   })
 })
 

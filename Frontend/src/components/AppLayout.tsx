@@ -243,7 +243,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <button
               onClick={() => {
                 useAuthStore.getState().clearAccessToken()
-                navigate('/login', { replace: true })
+                navigate('/', { replace: true })
               }}
               title={t.nav.logout}
               aria-label={t.nav.logout}

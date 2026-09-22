@@ -188,6 +188,7 @@ export const tr: Dictionary = {
     unknown: 'Bilinmiyor',
   },
   forbidden: {
+    authHint: 'Devam etmek için Slush ile giriş yap',
     title: '403',
     heading: 'Erişim yok',
     hint: 'Rolün bu bölüm için yetersiz',

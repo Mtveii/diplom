@@ -189,6 +189,7 @@ export const en: Dictionary = {
     unknown: 'Unknown',
   },
   forbidden: {
+    authHint: 'Sign in via Slush to continue',
     title: '403',
     heading: 'Access denied',
     hint: 'Your role is not enough for this section',

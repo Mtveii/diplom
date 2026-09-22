@@ -1,12 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/services/api/auth.api'
 import { isTokenExpired, useAuthStore } from '@/store/authStore'
+import { extractTokenFromUrl } from '@/utils/role'
 
 /**
- * Экрана входа нет. В DEV-режиме тихо логинимся кредами из локального .env.local
- * (gitignored). В прод-сборке эта ветка вырезается по import.meta.env.DEV,
- * поэтому креды физически не могут попасть в dist-бандл.
- * Сохранённый токен переиспользуем. В проде — всегда анонимно.
+ * Порядок входа:
+ * 1. Токен из адреса (?token= / #access_token=) — Slush-Front передаёт ключ
+ *    при редиректе на другом домене. Забираем в свой ключ, из адреса стираем.
+ * 2. Сохранённый токен (свой ключ или shared-ключи Slush-Front).
+ * 3. Только DEV: тихий вход кредами из локального .env.local (gitignored).
+ * Своей формы входа у панели нет — она живёт в Slush-Front.
  */
 export default function AuthBootstrap({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
@@ -14,7 +17,33 @@ export default function AuthBootstrap({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
 
+    const consumeUrlToken = (): boolean => {
+      const fromUrl = extractTokenFromUrl(window.location.search, window.location.hash)
+      if (!fromUrl || isTokenExpired(fromUrl)) {
+        return false
+      }
+      useAuthStore.getState().setAccessToken(fromUrl)
+      // Ключ в адресе больше не нужен — стираем, чтобы не светился и не уехал в историю/Referer.
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('token')
+        const keptHash = url.hash
+          .replace(/^#/, '')
+          .split('&')
+          .filter((part) => !/^(access_token|token)=/.test(part))
+          .join('&')
+        url.hash = keptHash ? `#${keptHash}` : ''
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+      } catch {
+        // ignore — некритично
+      }
+      return true
+    }
+
     const bootstrap = async () => {
+      if (consumeUrlToken()) {
+        return
+      }
       if (!import.meta.env.DEV) {
         return
       }
@@ -34,7 +63,7 @@ export default function AuthBootstrap({ children }: { children: ReactNode }) {
           useAuthStore.getState().setAccessToken(token)
         }
       } catch (err) {
-        console.warn('[AuthBootstrap] Тихий вход не удался — работаем анонимно', err)
+        console.warn('[AuthBootstrap] Тихий вход не удался — нужна ссылка со Slush', err)
       }
     }
 

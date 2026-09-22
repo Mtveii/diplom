@@ -12,7 +12,6 @@ import CommandCenterPage from '@/pages/CommandCenterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
 import GameDetailPage from '@/pages/GameDetailPage'
-import LoginPage from '@/pages/LoginPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -20,7 +19,6 @@ export default function App() {
     <AuthBootstrap>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
           <Route
             path="/"
             element={

@@ -203,6 +203,7 @@ export const uk = {
     unknown: 'Невідомо',
   },
   forbidden: {
+    authHint: 'Увійдіть через Slush, щоб продовжити',
     title: '403',
     heading: 'Немає доступу',
     hint: 'Вашої ролі недостатньо для цього розділу',

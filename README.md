@@ -60,13 +60,21 @@ SuperAdmin всегда один: второго назначить нельзя
 
 Свой уровень видно в шапке (бейдж «Рівень N · Роль»).
 
-Вход: экран логина (`/login`, логин/email + пароль). Без токена все разделы ведут на него — гостевого доступа нет, только 4 роли. Роль берётся из JWT claim (`role` или `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`). Выход — кнопка в шапке.
-В локальном dev (`npm run dev`) сайт сначала пробует тихий вход кредами из gitignored `Frontend/.env.local`; без кредов — сразу экран логина. В прод-сборке тихого входа нет.
+Вход: своей формы входа у панели нет — логин живёт в Slush-Front (после входа админские роли редиректятся сюда через их `VITE_ADMIN_URL`). Панель подхватывает токен по приоритету:
+1. из адреса (`?token=` или `#accessToken=`/`#token=`) — забирает в свой ключ и стирает из адреса;
+2. свой ключ (тихий dev-вход);
+3. `accessToken` Slush-Front (localStorage → sessionStorage, работает при same-origin деплое).
+Без токена — подсказка войти через Slush, с чужой ролью — 403. Гостей нет, только 4 роли. Роль берётся из JWT claim (`role` или `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`). Выход — кнопка в шапке (чистит и ключи Slush).
+В локальном dev (`npm run dev`) сайт сначала пробует тихий вход кредами из gitignored `Frontend/.env.local`; без кредов — подсказка войти через Slush. В прод-сборке тихого входа нет.
 UI-гейты (`RequireRole`, фильтр меню, `utils/role.ts`) — только удобство: последнее слово за бэкендом (401/403).
 
 Нюансы:
 - Роль живёт до истечения JWT: после смены роли нужен новый вход.
 - int → имя роли в `PUT /api/Admin/users/{id}/role`: `User=0, Analyst=1, Moderator=2, Admin=3, SuperAdmin=4` (списано с `Slush.Domain.Enums.UserRole`).
+- Кросс-домен: localStorage между доменами не shared, поэтому Slush-Front должен дописать ключ в ссылку при редиректе (фрагмент — он не уходит на сервер):
+```ts
+window.location.href = import.meta.env.VITE_ADMIN_URL + '#access_token=' + response.accessToken
+```
 
 Переменные окружения Frontend: см. `Frontend/.env.example`.
 

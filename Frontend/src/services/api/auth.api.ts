@@ -6,7 +6,7 @@ interface SlushLoginResponse {
 }
 
 export const authApi = {
-  /** Тихий вход для DEV-режима. В UI не используется, экрана логина нет. */
+  /** Тихий вход для DEV-режима (AuthBootstrap) и будущие refresh-флоу. Своей формы входа у панели нет. */
   login: async (loginOrEmail: string, password: string): Promise<string> => {
     const response = await httpClient.post<SlushLoginResponse>('/Auth/login', {
       loginOrEmail,

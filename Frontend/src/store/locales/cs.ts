@@ -200,6 +200,7 @@ export const cs: Dictionary = {
     unknown: 'Neznámé',
   },
   forbidden: {
+    authHint: 'Přihlaste se přes Slush pro pokračování',
     title: '403',
     heading: 'Přístup odepřen',
     hint: 'Vaše role pro tuto sekci nestačí',

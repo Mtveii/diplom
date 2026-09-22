@@ -6,6 +6,29 @@ export const KNOWN_ROLES: readonly UserRole[] = ['SuperAdmin', 'Admin', 'Moderat
 /** Claim с ролью в JWT Slush API (ASP.NET Core Identity-стиль). Проверен живым токеном. */
 export const JWT_ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
 
+/**
+ * Токен из адреса (передача ключа со Slush-Front при кросс-домене).
+ * Фрагмент (#access_token= / #token=) предпочтительнее query (?token=):
+ * он не уходит на сервер и в Referer. Возвращает как есть, без валидации.
+ */
+export function extractTokenFromUrl(search: string, hash: string): string | null {
+  const fromQuery = new URLSearchParams(search).get('token')
+  if (fromQuery && fromQuery.length > 0) {
+    return fromQuery
+  }
+  const fragment = hash.startsWith('#') ? hash.slice(1) : hash
+  for (const part of fragment.split('&')) {
+    const [key, ...rest] = part.split('=')
+    if ((key === 'access_token' || key === 'token') && rest.length > 0) {
+      const value = rest.join('=')
+      if (value.length > 0) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
 /** Числові рівні допуску: чим вище, тим більше розділів. 0 — анонім/невідома роль. */
 export const ROLE_LEVEL: Record<UserRole, number> = {
   Analyst: 1,

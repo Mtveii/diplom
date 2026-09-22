@@ -189,6 +189,7 @@ export const pt: Dictionary = {
     unknown: 'Desconhecido',
   },
   forbidden: {
+    authHint: 'Entre via Slush para continuar',
     title: '403',
     heading: 'Acesso negado',
     hint: 'A tua função não chega para esta secção',
