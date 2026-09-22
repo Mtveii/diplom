@@ -55,7 +55,7 @@ export const es: Dictionary = {
     brandSubtitle: 'Panel',
     menuNav: 'Navegación',
     accessLevel: 'Nivel',
-    guest: 'Invitado',
+    logout: 'Salir',
     live: 'En vivo',
     reconnecting: 'Reconectando...',
     offline: 'Sin conexión',
@@ -175,6 +175,18 @@ export const es: Dictionary = {
     heading: 'Página no encontrada',
     hint: 'Esta dirección no existe o fue eliminada',
     home: 'Inicio',
+  },
+  login: {
+    title: 'Acceso admin',
+    subtitle: 'Inicia sesión para gestionar la red',
+    loginLabel: 'Login o email',
+    loginPh: 'p. ej. SlushAdmin',
+    passwordLabel: 'Contraseña',
+    passwordPh: '••••••••',
+    submit: 'Entrar',
+  },
+  geo: {
+    unknown: 'Desconocido',
   },
   forbidden: {
     title: '403',

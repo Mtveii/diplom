@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { alertsApi } from '@/services/api/alerts.api'
 import { offReconnected, offReconnecting, onReconnected, onReconnecting } from '@/services/signalr'
 import { useLocale } from '@/hooks/useLocale'
@@ -122,6 +122,7 @@ function useConnectionStatus(): ConnectionStatus {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
+  const navigate = useNavigate()
   const { t } = useLocale()
   const role = useAuthStore((state) => state.role)
   const navItems = useNavItems().filter((item) => canAccess(item.to, role))
@@ -216,13 +217,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <span
-              title={role ?? t.nav.guest}
-              className="hidden items-center gap-1.5 rounded-lg border border-surface-700 bg-surface-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-200 sm:flex"
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${roleDot}`} />
-              {role ? `${t.nav.accessLevel} ${roleLevel} · ${role}` : t.nav.guest}
-            </span>
+            {role && (
+              <span
+                title={role}
+                className="hidden items-center gap-1.5 rounded-lg border border-surface-700 bg-surface-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-200 sm:flex"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${roleDot}`} />
+                {`${t.nav.accessLevel} ${roleLevel} · ${role}`}
+              </span>
+            )}
             <span
               className={`hidden items-center gap-1.5 text-xs sm:flex ${
                 connectionStatus === 'live' ? 'text-success-400' : 'text-warning-400'
@@ -237,6 +240,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </span>
             <LanguageSwitcher compact />
             <NotificationBell />
+            <button
+              onClick={() => {
+                useAuthStore.getState().clearAccessToken()
+                navigate('/login', { replace: true })
+              }}
+              title={t.nav.logout}
+              aria-label={t.nav.logout}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-700 text-slate-300 transition-colors hover:bg-surface-800 hover:text-white"
+            >
+              <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
+            </button>
           </div>
         </header>
 

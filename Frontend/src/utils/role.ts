@@ -94,9 +94,6 @@ export const ROUTES_ACCESS: Record<string, readonly UserRole[]> = {
   '/settings': ['SuperAdmin', 'Admin'],
 }
 
-/** Разделы на публичных данных — открыты даже без токена и с неизвестной ролью. */
-const ANONYMOUS_ROUTES: ReadonlySet<string> = new Set(['/', '/games'])
-
 function matchRoute(path: string): string | null {
   const normalized = path.split('?')[0].replace(/\/+$/, '') || '/'
   if (normalized in ROUTES_ACCESS) {
@@ -108,14 +105,14 @@ function matchRoute(path: string): string | null {
   return prefix ?? null
 }
 
-/** Можно ли роли (или анониму/неизвестной роли) открыть путь. */
+/**
+ * Можно ли роли открыть путь. Гостей нет: без токена и с неизвестной
+ * ролью (напр. "User") закрыто всё — вход только через логин.
+ */
 export function canAccess(path: string, role: string | null | undefined): boolean {
   const key = matchRoute(path)
-  if (!key) {
+  if (!key || !isKnownRole(role)) {
     return false
-  }
-  if (role == null || !isKnownRole(role)) {
-    return ANONYMOUS_ROUTES.has(key)
   }
   return ROUTES_ACCESS[key].includes(role)
 }

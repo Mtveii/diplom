@@ -66,7 +66,7 @@ export const cs: Dictionary = {
     brandSubtitle: 'Přehled',
     menuNav: 'Navigace',
     accessLevel: 'Úroveň',
-    guest: 'Host',
+    logout: 'Odhlásit',
     live: 'Živě',
     reconnecting: 'Znovu připojuji...',
     offline: 'Offline',
@@ -186,6 +186,18 @@ export const cs: Dictionary = {
     heading: 'Stránka nenalezena',
     hint: 'Adresa neexistuje nebo byla odstraněna',
     home: 'Domů',
+  },
+  login: {
+    title: 'Přihlášení admina',
+    subtitle: 'Přihlaste se pro správu sítě',
+    loginLabel: 'Login nebo e-mail',
+    loginPh: 'např. SlushAdmin',
+    passwordLabel: 'Heslo',
+    passwordPh: '••••••••',
+    submit: 'Přihlásit',
+  },
+  geo: {
+    unknown: 'Neznámé',
   },
   forbidden: {
     title: '403',

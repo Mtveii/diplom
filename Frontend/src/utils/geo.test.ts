@@ -41,8 +41,8 @@ describe('toGlobePoints', () => {
     expect(result).toEqual([{ lat: 50, lng: 30, city: 'Kyiv', country: 'UA' }])
   })
 
-  it('falls back to ? for missing names', () => {
+  it('keeps null names for the UI unknown-label', () => {
     const result = toGlobePoints([{ lat: 1, lng: 2, city: null, country: '' }])
-    expect(result).toEqual([{ lat: 1, lng: 2, city: '?', country: '?' }])
+    expect(result).toEqual([{ lat: 1, lng: 2, city: null, country: null }])
   })
 })

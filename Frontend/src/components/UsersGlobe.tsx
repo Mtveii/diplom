@@ -32,11 +32,12 @@ export function UsersGlobe() {
       </div>
     )
   }
+  const unknown = t.geo.unknown
 
   const points: Point[] = users.map((u) => ({
     lat: u.lat,
     lng: u.lng,
-    city: `${u.city}, ${u.country}`,
+    city: `${u.city ?? unknown}, ${u.country ?? unknown}`,
     size: 0.6,
     color: '#34d399', // success green / teal
   }))

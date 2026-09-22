@@ -315,7 +315,11 @@ export default function DashboardPage() {
                     />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-200">
                       {member.nickname}
-                      <span className="ml-1.5 text-xs text-slate-500">{member.city}, {member.country}</span>
+                      <span className="ml-1.5 text-xs text-slate-500">
+                        {member.city && member.country
+                          ? `${member.city}, ${member.country}`
+                          : t.geo.unknown}
+                      </span>
                     </span>
                     {member.currentGame ? (
                       <span className="max-w-32 truncate text-xs text-primary-300" title={member.currentGame}>

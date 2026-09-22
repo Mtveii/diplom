@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { EmptyState, PageSkeleton } from '@/components/PageState'
 import AchievementBars from '@/components/AchievementBars'
@@ -51,8 +51,13 @@ function formatMoney(value: number | null | undefined, freeLabel: string): strin
 
 export default function GameDetailPage() {
   const location = useLocation()
+  const params = useParams()
   const { t, locale } = useLocale()
-  const game = (location.state?.game as UnifiedGameDto | undefined) ?? null
+  const stateGame = (location.state?.game as UnifiedGameDto | undefined) ?? null
+  // Прямой URL/рефреш без state: подтягиваем игру по :id с бэкенда.
+  const [resolvedGame, setResolvedGame] = useState<UnifiedGameDto | null>(null)
+  const [resolveFailed, setResolveFailed] = useState(false)
+  const game = stateGame ?? resolvedGame
   const { isMonitored, toggleMonitor } = useWatchlist()
   const tabLabels: Record<Tab, string> = {
     overview: t.gameDetail.tabOverview,
@@ -109,6 +114,9 @@ export default function GameDetailPage() {
     if (game == null) {
       return undefined
     }
+    if (details?.id != null && details.id === game.id) {
+      return undefined
+    }
     void catalogApi.gameDetails(game.id).then((result) => {
       if (!cancelled) {
         setDetails(result)
@@ -117,7 +125,49 @@ export default function GameDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [game])
+  }, [game, details])
+
+  // Резолв по :id для прямого захода (без location.state).
+  useEffect(() => {
+    let cancelled = false
+    const paramId = params.id
+    if (stateGame != null || !paramId || resolvedGame != null || resolveFailed) {
+      return undefined
+    }
+    void catalogApi.gameDetails(paramId).then((result) => {
+      if (cancelled) {
+        return
+      }
+      if (result == null) {
+        setResolveFailed(true)
+        return
+      }
+      const numericId = /^\d+$/.test(paramId) ? Number(paramId) : null
+      setResolvedGame({
+        id: paramId,
+        steamAppId: numericId,
+        name: result.title ?? t.common.untitled,
+        price: result.price ?? 0,
+        isFree: (result.price ?? 0) <= 0,
+        description: result.description,
+        image: result.thumbnail,
+        gallery: result.screenshots ?? [],
+        developer: result.developer,
+        publisher: result.publisher,
+        genres: result.tags ?? [],
+        platforms: [],
+        rating: null,
+        ownersEstimate: null,
+        releaseDate: result.releaseDate,
+        sourceUrls: { gog: null, epic: null, freetogame: null },
+        sources: [],
+      })
+      setDetails(result)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [stateGame, params.id, resolvedGame, resolveFailed, t])
 
   const [forecastOn, setForecastOn] = useState(false)
 
@@ -193,7 +243,11 @@ export default function GameDetailPage() {
   }, [monitor, periodDays, forecastOn, locale, t])
 
   if (!game) {
-    return <Navigate to="/games" replace />
+    // Невалидный :id (бекенд ничего не нашёл) — назад в каталог.
+    if (resolveFailed) {
+      return <Navigate to="/games" replace />
+    }
+    return <PageSkeleton />
   }
 
   const rating = game.rating != null ? game.rating / 20 : null

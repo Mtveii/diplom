@@ -116,12 +116,13 @@ describe('canAccess', () => {
     }
   })
 
-  it('restricts unknown roles and anonymous users to public routes', () => {
-    expect(canAccess('/', 'User')).toBe(true)
-    expect(canAccess('/games/730', 'User')).toBe(true)
-    expect(canAccess('/members', 'User')).toBe(false)
-    expect(canAccess('/analytics', null)).toBe(false)
-    expect(canAccess('/', null)).toBe(true)
+  it('denies everything without a token or with an unknown role (no guests)', () => {
+    for (const path of ['/', '/members', '/games', '/analytics', '/command-center', '/settings']) {
+      expect(canAccess(path, null)).toBe(false)
+      expect(canAccess(path, undefined)).toBe(false)
+      expect(canAccess(path, 'User')).toBe(false)
+      expect(canAccess(path, 'Viewer')).toBe(false)
+    }
     expect(canAccess('/unknown-path', 'SuperAdmin')).toBe(false)
   })
 })

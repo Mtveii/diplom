@@ -8,17 +8,17 @@ export interface DashboardSummaryDto {
   networkStabilityPercent?: number
 }
 
-/** Пользователь сети Slush с гео-координатами (GET /Monitoring/online). */
+/** Пользователь сети Slush с гео-координатами (GET /Monitoring/online). Бекенд может слать null. */
 export interface OnlineUserDto {
   steamId: string
   nickname: string
   status: string
   currentGame: string | null
   playtimeHours: number
-  lat: number
-  lng: number
-  city: string
-  country: string
+  lat: number | null
+  lng: number | null
+  city: string | null
+  country: string | null
 }
 
 /** Точка графика «Топ игр» (GET /Monitoring/game-trends). */

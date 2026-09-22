@@ -54,7 +54,7 @@ export const tr: Dictionary = {
     brandSubtitle: 'Panel',
     menuNav: 'Gezinme',
     accessLevel: 'Seviye',
-    guest: 'Misafir',
+    logout: 'Çıkış yap',
     live: 'Canlı',
     reconnecting: 'Yeniden bağlanıyor...',
     offline: 'Çevrimdışı',
@@ -174,6 +174,18 @@ export const tr: Dictionary = {
     heading: 'Sayfa bulunamadı',
     hint: 'Adres yok veya silinmiş',
     home: 'Ana sayfa',
+  },
+  login: {
+    title: 'Admin girişi',
+    subtitle: 'Ağı yönetmek için giriş yap',
+    loginLabel: 'Kullanıcı adı veya e-posta',
+    loginPh: 'örn. SlushAdmin',
+    passwordLabel: 'Şifre',
+    passwordPh: '••••••••',
+    submit: 'Giriş yap',
+  },
+  geo: {
+    unknown: 'Bilinmiyor',
   },
   forbidden: {
     title: '403',

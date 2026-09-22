@@ -15,8 +15,8 @@ export interface GeoPointInput {
 export interface GeoPoint {
   lat: number
   lng: number
-  city: string
-  country: string
+  city: string | null
+  country: string | null
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -45,7 +45,7 @@ export function toGlobePoints(users: readonly GeoPointInput[]): GeoPoint[] {
     .map((user) => ({
       lat: user.lat as number,
       lng: user.lng as number,
-      city: user.city?.trim() || '?',
-      country: user.country?.trim() || '?',
+      city: user.city?.trim() || null,
+      country: user.country?.trim() || null,
     }))
 }

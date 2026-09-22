@@ -69,7 +69,7 @@ export const uk = {
     brandSubtitle: 'Дашборд',
     menuNav: 'Меню навігації',
     accessLevel: 'Рівень',
-    guest: 'Гість',
+    logout: 'Вийти',
     live: 'Наживо',
     reconnecting: 'Перепідключення...',
     offline: 'Офлайн',
@@ -189,6 +189,18 @@ export const uk = {
     heading: 'Сторінку не знайдено',
     hint: 'Схоже, такої адреси немає або її видалено',
     home: 'На головну',
+  },
+  login: {
+    title: 'Вхід до адмін-панелі',
+    subtitle: 'Увійдіть, щоб керувати мережею',
+    loginLabel: 'Логін або email',
+    loginPh: 'напр. SlushAdmin',
+    passwordLabel: 'Пароль',
+    passwordPh: '••••••••',
+    submit: 'Увійти',
+  },
+  geo: {
+    unknown: 'Невідомо',
   },
   forbidden: {
     title: '403',

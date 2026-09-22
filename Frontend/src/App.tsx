@@ -12,6 +12,7 @@ import CommandCenterPage from '@/pages/CommandCenterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GameMonitorPage from '@/pages/GameMonitorPage'
 import GameDetailPage from '@/pages/GameDetailPage'
+import LoginPage from '@/pages/LoginPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
@@ -19,11 +20,14 @@ export default function App() {
     <AuthBootstrap>
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
           <Route
             path="/"
             element={
               <AppLayout>
-                <DashboardPage />
+                <RequireRole path="/">
+                  <DashboardPage />
+                </RequireRole>
               </AppLayout>
             }
           />
@@ -51,7 +55,9 @@ export default function App() {
             path="/games"
             element={
               <AppLayout>
-                <GameMonitorPage />
+                <RequireRole path="/games">
+                  <GameMonitorPage />
+                </RequireRole>
               </AppLayout>
             }
           />
@@ -59,7 +65,9 @@ export default function App() {
             path="/games/:id"
             element={
               <AppLayout>
-                <GameDetailPage />
+                <RequireRole path="/games">
+                  <GameDetailPage />
+                </RequireRole>
               </AppLayout>
             }
           />
@@ -98,7 +106,9 @@ export default function App() {
             path="*"
             element={
               <AppLayout>
-                <NotFoundPage />
+                <RequireRole path="/">
+                  <NotFoundPage />
+                </RequireRole>
               </AppLayout>
             }
           />

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
@@ -11,12 +11,16 @@ interface RequireRoleProps {
 }
 
 /**
- * Роут-гард по роли из JWT. Экрана логина нет, поэтому запрет —
- * инлайн-панель 403 со ссылкой на главную, а не редирект на /login.
+ * Гостей нет: без токена — на экран логина, с чужой ролью — панель 403.
  */
 export default function RequireRole({ path, children }: RequireRoleProps) {
+  const token = useAuthStore((state) => state.accessToken)
   const role = useAuthStore((state) => state.role)
   const { t } = useLocale()
+
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
 
   if (canAccess(path, role)) {
     return <>{children}</>
