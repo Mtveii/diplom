@@ -20,6 +20,7 @@ import { monitoringApi } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
 import { toast } from '@/store/toastStore'
 import { formatDay } from '@/utils/format'
+import { groupUsersByCountry } from '@/utils/geo'
 import type { ChurnRiskDto, CohortRowDto, PeriodComparisonDto, RetentionPointDto } from '@/types/analytics'
 import type { DashboardSummaryDto } from '@/types/monitoring'
 import type { AdminUserDto } from '@/types/auth'
@@ -27,11 +28,6 @@ import type { AdminUserDto } from '@/types/auth'
 interface GameDistributionPoint {
   name: string
   players: number
-}
-
-interface CountryPoint {
-  country: string
-  users: number
 }
 
 interface RegistrationPoint {
@@ -132,16 +128,8 @@ export default function AnalyticsPage() {
       .slice(0, 8)
   }, [onlineUsers])
 
-  /** География онлайн-пользователей. */
-  const countries = useMemo<CountryPoint[]>(() => {
-    const byCountry = new Map<string, number>()
-    for (const user of onlineUsers) {
-      byCountry.set(user.country, (byCountry.get(user.country) ?? 0) + 1)
-    }
-    return [...byCountry.entries()]
-      .map(([country, users]) => ({ country, users }))
-      .sort((a, b) => b.users - a.users)
-  }, [onlineUsers])
+  /** География онлайн-пользователей (пустые страны бекенда пропускаем). */
+  const countries = useMemo(() => groupUsersByCountry(onlineUsers), [onlineUsers])
 
   /** Регистрации в системе по дням. */
   const registrations = useMemo<RegistrationPoint[]>(() => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canAccess,
+  canBanUser,
   canManageAlerts,
   canManageRoles,
   canViewSecurity,
@@ -10,6 +11,7 @@ import {
   hasOtherEffectiveSuperAdmin,
   isEffectiveSuperAdmin,
   isKnownRole,
+  isSelfIdentity,
   JWT_ROLE_CLAIM,
   type RoleHolder,
 } from './role'
@@ -59,6 +61,33 @@ describe('isKnownRole', () => {
   })
 })
 
+describe('canBanUser', () => {
+  const sa = { id: 'sa', username: 'boss', role: 'SuperAdmin', isBanned: false }
+  const admin = { id: 'a', username: 'adm', role: 'Admin', isBanned: false }
+  const mod = { id: 'm', username: 'mod', role: 'Moderator', isBanned: false }
+  const selfSa = { userId: 'sa', username: 'boss' }
+
+  it('forbids banning yourself', () => {
+    expect(canBanUser('SuperAdmin', sa, selfSa)).toBe(false)
+  })
+
+  it('allows SuperAdmin to ban anyone else', () => {
+    expect(canBanUser('SuperAdmin', admin, selfSa)).toBe(true)
+    expect(canBanUser('SuperAdmin', mod, selfSa)).toBe(true)
+  })
+
+  it('forbids non-SuperAdmin from banning Admin/SuperAdmin', () => {
+    expect(canBanUser('Admin', admin, null)).toBe(false)
+    expect(canBanUser('Moderator', sa, null)).toBe(false)
+    expect(canBanUser('Moderator', mod, null)).toBe(true)
+  })
+
+  it('matches by username when ids differ', () => {
+    expect(isSelfIdentity({ userId: 'x', username: 'mod' }, mod)).toBe(true)
+    expect(isSelfIdentity(null, mod)).toBe(false)
+  })
+})
+
 describe('canAccess', () => {
   it('opens everything for SuperAdmin', () => {
     for (const path of ['/', '/members', '/members/1', '/games', '/games/730', '/analytics', '/command-center', '/settings']) {
@@ -74,11 +103,11 @@ describe('canAccess', () => {
     expect(canAccess('/settings', 'Analyst')).toBe(false)
   })
 
-  it('keeps Moderator away from analytics and command-center', () => {
+  it('keeps Moderator away from analytics, command-center and settings', () => {
     expect(canAccess('/members', 'Moderator')).toBe(true)
-    expect(canAccess('/settings', 'Moderator')).toBe(true)
     expect(canAccess('/analytics', 'Moderator')).toBe(false)
     expect(canAccess('/command-center', 'Moderator')).toBe(false)
+    expect(canAccess('/settings', 'Moderator')).toBe(false)
   })
 
   it('gives Admin every section except none', () => {

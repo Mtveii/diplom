@@ -3,14 +3,13 @@ import { getLocaleDictionary } from '@/store/localeStore'
 import type { AdminUserDto, UserRole } from '@/types/auth'
 
 /**
- * Маппінг ролей на int-enum Slush API (порядок з історії проєкту).
- * УВАГА: відповідність int → ім'я ролі живим запитом не перевірена
- * (у БД зараз є тільки "User" і "SuperAdmin") — перед зміною чужих
- * ролей звірити з бекендером.
+ * Маппінг ролей на int-enum Slush API — ТОЧНО за Slush.Domain.Enums.UserRole:
+ * User = 0, Analyst = 1, Moderator = 2, Admin = 3, SuperAdmin = 4.
+ * (Раніше тут був неправильний порядок з історії проєкту — виправлено.)
  */
 const USER_ROLE_TO_INT: Record<UserRole, number> = {
-  SuperAdmin: 3,
-  Admin: 0,
+  SuperAdmin: 4,
+  Admin: 3,
   Moderator: 2,
   Analyst: 1,
 }

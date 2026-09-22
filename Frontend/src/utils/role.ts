@@ -80,8 +80,10 @@ export function isKnownRole(role: string | null | undefined): role is UserRole {
 }
 
 /**
- * Карта доступов по разделам. Это только UX-гейты:
- * последнее слово за бэкендом (401/403 на закрытых эндпоинтах).
+ * Карта доступов по разделам. Сверена с [Authorize] бэкенда (SlushBackend):
+ * Admin-контроллер: SuperAdmin/Admin/Moderator (PUT роли — только SuperAdmin);
+ * SuperAdmin/Admin; Analytics/Monitoring: +Analyst; Catalog: анонимно.
+ * Это только UX-гейты: последнее слово за бэкендом (401/403).
  */
 export const ROUTES_ACCESS: Record<string, readonly UserRole[]> = {
   '/': ['SuperAdmin', 'Admin', 'Moderator', 'Analyst'],
@@ -89,7 +91,7 @@ export const ROUTES_ACCESS: Record<string, readonly UserRole[]> = {
   '/games': ['SuperAdmin', 'Admin', 'Moderator', 'Analyst'],
   '/analytics': ['SuperAdmin', 'Admin', 'Analyst'],
   '/command-center': ['SuperAdmin', 'Admin'],
-  '/settings': ['SuperAdmin', 'Admin', 'Moderator'],
+  '/settings': ['SuperAdmin', 'Admin'],
 }
 
 /** Разделы на публичных данных — открыты даже без токена и с неизвестной ролью. */
@@ -143,6 +145,38 @@ export function isEffectiveSuperAdmin(user: RoleHolder): boolean {
 /** Есть ли другой действующий суперадмин кроме указанного. */
 export function hasOtherEffectiveSuperAdmin(users: readonly RoleHolder[], userId: string): boolean {
   return users.some((user) => user.id !== userId && isEffectiveSuperAdmin(user))
+}
+
+/** Это текущий пользователь (по sub или username из токена)? */
+export function isSelfIdentity(
+  self: TokenIdentity | null,
+  user: { id: string; username?: string | null },
+): boolean {
+  if (!self) {
+    return false
+  }
+  if (self.userId === user.id) {
+    return true
+  }
+  return self.username !== null && user.username != null && self.username === user.username
+}
+
+/**
+ * Можно ли банить цель. Правила SlushBackend (AdminController.ToggleBan):
+ * себя — нельзя; Admin/SuperAdmin — только суперадмин.
+ */
+export function canBanUser(
+  currentRole: string | null | undefined,
+  target: RoleHolder & { username?: string | null },
+  self: TokenIdentity | null,
+): boolean {
+  if (isSelfIdentity(self, target)) {
+    return false
+  }
+  if ((target.role === 'Admin' || target.role === 'SuperAdmin') && currentRole !== 'SuperAdmin') {
+    return false
+  }
+  return true
 }
 
 /** Вкладки аудита/безопасности в настройках: SuperAdmin и Admin. */

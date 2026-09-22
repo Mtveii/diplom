@@ -9,7 +9,14 @@ import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import { downloadCsv } from '@/utils/csv'
 import { formatDateTime } from '@/utils/format'
-import { canManageRoles, hasOtherEffectiveSuperAdmin, isEffectiveSuperAdmin } from '@/utils/role'
+import {
+  canBanUser,
+  canManageRoles,
+  decodeIdentityFromToken,
+  hasOtherEffectiveSuperAdmin,
+  isEffectiveSuperAdmin,
+} from '@/utils/role'
+import { extractErrorMessage } from '@/services/api/httpClient'
 import type { AdminUserDto } from '@/types/auth'
 
 type StatusFilter = 'all' | 'active' | 'banned'
@@ -47,6 +54,8 @@ export default function UsersPage() {
   const [page, setPage] = useState(1)
   /** Смена ролей — только SuperAdmin. */
   const canChangeRoles = canManageRoles(useAuthStore((state) => state.role))
+  const currentRole = useAuthStore((state) => state.role)
+  const selfIdentity = decodeIdentityFromToken(useAuthStore((state) => state.accessToken))
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -145,8 +154,8 @@ export default function UsersPage() {
       await usersApi.toggleBan(user.id)
       toast.success(t.users.banToast(user.username, user.isBanned))
       await reload()
-    } catch {
-      toast.error(t.users.banError)
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
     } finally {
       setBusyId(null)
     }
@@ -291,7 +300,10 @@ export default function UsersPage() {
                             event.stopPropagation()
                             void toggleBan(user)
                           }}
-                          disabled={busyId === user.id}
+                          disabled={busyId === user.id || !canBanUser(currentRole, user, selfIdentity)}
+                          title={
+                            canBanUser(currentRole, user, selfIdentity) ? undefined : t.users.banNotAllowed
+                          }
                           className={user.isBanned ? 'btn-ghost h-8 px-3 text-xs' : 'btn-danger h-8 px-3 text-xs'}
                         >
                           {busyId === user.id ? '...' : user.isBanned ? t.users.unban : t.users.ban}

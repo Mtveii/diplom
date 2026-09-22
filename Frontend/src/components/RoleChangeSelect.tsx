@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ConfirmModal from '@/components/ConfirmModal'
 import { useLocale } from '@/hooks/useLocale'
+import { extractErrorMessage } from '@/services/api/httpClient'
 import { usersApi } from '@/services/api/users.api'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
@@ -61,8 +62,9 @@ export default function RoleChangeSelect({ user, users, onChanged }: RoleChangeS
         return
       }
       onChanged()
-    } catch {
-      toast.error(t.settings.roleError)
+    } catch (err) {
+      // Бекенд присылает понятные 400/403 (себя менять нельзя и т.п.) — показываем их текст.
+      toast.error(extractErrorMessage(err))
     } finally {
       setBusy(false)
     }

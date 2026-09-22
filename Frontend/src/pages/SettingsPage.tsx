@@ -8,7 +8,8 @@ import { usersApi } from '@/services/api/users.api'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
-import { canManageRoles, canViewSecurity, hasOtherEffectiveSuperAdmin, isEffectiveSuperAdmin } from '@/utils/role'
+import { canManageRoles, canViewSecurity, decodeIdentityFromToken, hasOtherEffectiveSuperAdmin, isEffectiveSuperAdmin, canBanUser } from '@/utils/role'
+import { extractErrorMessage } from '@/services/api/httpClient'
 import { formatDateTime } from '@/utils/format'
 import type { AdminActionLogDto } from '@/types/analytics'
 import type { AdminUserDto, UserRole } from '@/types/auth'
@@ -52,6 +53,7 @@ export default function SettingsPage() {
     },
   ]
   const role = useAuthStore((state) => state.role)
+  const selfIdentity = decodeIdentityFromToken(useAuthStore((state) => state.accessToken))
   /** Смена ролей — только SuperAdmin; аудит/безопасность — SuperAdmin и Admin. */
   const showRolesTab = canManageRoles(role)
   const showSecurityTab = canViewSecurity(role)
@@ -160,8 +162,8 @@ export default function SettingsPage() {
       await usersApi.toggleBan(userId)
       toast.success(isBanned ? t.settings.userUnbanned : t.settings.userBanned)
       await reload()
-    } catch {
-      toast.error(t.settings.banError)
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
     }
   }
 
@@ -287,6 +289,12 @@ export default function SettingsPage() {
                           />
                           <button
                             onClick={() => void toggleBan(managedUser.id, managedUser.isBanned)}
+                            disabled={!canBanUser(role, managedUser, selfIdentity)}
+                            title={
+                              canBanUser(role, managedUser, selfIdentity)
+                                ? undefined
+                                : t.settings.banNotAllowed
+                            }
                             className={managedUser.isBanned ? 'btn-ghost h-8 px-3 text-xs' : 'btn-danger h-8 px-3 text-xs'}
                           >
                             {managedUser.isBanned ? t.settings.unban : t.settings.ban}

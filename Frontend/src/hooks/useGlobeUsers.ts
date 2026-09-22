@@ -3,13 +3,9 @@ import * as signalR from '@microsoft/signalr'
 import { API_BASE_URL } from '@/services/api/httpClient'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { useAuthStore } from '@/store/authStore'
+import { toGlobePoints, type GeoPoint } from '@/utils/geo'
 
-export interface GeoPoint {
-  lat: number
-  lng: number
-  city: string
-  country: string
-}
+export type { GeoPoint }
 
 const REST_REFRESH_INTERVAL_MS = 30_000
 
@@ -32,14 +28,8 @@ export function useGlobeUsers() {
         if (!mounted) {
           return
         }
-        setUsers(
-          data.map((user) => ({
-            lat: user.lat,
-            lng: user.lng,
-            city: user.city,
-            country: user.country,
-          })),
-        )
+        // Точки без координат на глобус не ставим — three.js их не переваривает.
+        setUsers(toGlobePoints(data))
       } catch (err) {
         console.warn('[useGlobeUsers] Не удалось загрузить точки с REST', err)
       }
