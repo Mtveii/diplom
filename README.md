@@ -64,13 +64,14 @@ SuperAdmin всегда один: второго назначить нельзя
 1. из адреса (`?token=` или `#accessToken=`/`#token=`) — забирает в свой ключ и стирает из адреса;
 2. свой ключ (тихий dev-вход);
 3. `accessToken` Slush-Front (localStorage → sessionStorage, работает при same-origin деплое).
-Без токена — подсказка войти через Slush, с чужой ролью — 403. Гостей нет, только 4 роли. Роль берётся из JWT claim (`role` или `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`). Выход — кнопка в шапке (чистит и ключи Slush).
+Без токена — подсказка войти через Slush, с чужой ролью — 403. Гостей нет, только 4 роли. Роль берётся из JWT claim (`role` или `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`). Выход — кнопка в шапке (чистит и ключи Slush). Автолок: 30 минут без мыши/клавиатуры/скролла — токен сгорает сам.
 В локальном dev (`npm run dev`) сайт сначала пробует тихий вход кредами из gitignored `Frontend/.env.local`; без кредов — подсказка войти через Slush. В прод-сборке тихого входа нет.
 UI-гейты (`RequireRole`, фильтр меню, `utils/role.ts`) — только удобство: последнее слово за бэкендом (401/403).
 
 Нюансы:
 - Роль живёт до истечения JWT: после смены роли нужен новый вход.
 - int → имя роли в `PUT /api/Admin/users/{id}/role`: `User=0, Analyst=1, Moderator=2, Admin=3, SuperAdmin=4` (списано с `Slush.Domain.Enums.UserRole`).
+- Именные входы: `/superadmin`, `/admin`, `/moderator`, `/analyst` — своя роль проходит на домашний раздел (`/` `/` `/members` `/analytics`), чужая видит 403. Замок — токен, не путь: Slush-Front редиректит каждую роль на её вход.
 - Кросс-домен: localStorage между доменами не shared, поэтому Slush-Front должен дописать ключ в ссылку при редиректе (фрагмент — он не уходит на сервер):
 ```ts
 window.location.href = import.meta.env.VITE_ADMIN_URL + '#access_token=' + response.accessToken

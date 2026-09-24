@@ -37,6 +37,7 @@ export const tr: Dictionary = {
     confirm: 'Onayla',
     requestError: 'Sunucu isteği başarısız',
     noName: 'İsimsiz',
+    sessionExpired: 'Hareketsizlik nedeniyle oturum kapatıldı',
     untitled: 'Başlıksız',
     noRule: 'Kural yok',
   },

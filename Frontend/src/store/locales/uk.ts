@@ -52,6 +52,7 @@ export const uk = {
     confirm: 'Підтвердити',
     requestError: 'Помилка запиту до сервера',
     noName: "Без імені",
+    sessionExpired: 'Сесію завершено через неактивність',
     untitled: 'Без назви',
     noRule: 'Без правила',
   },

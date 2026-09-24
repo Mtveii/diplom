@@ -50,6 +50,7 @@ export const pl: Dictionary = {
     confirm: 'Potwierdź',
     requestError: 'Błąd żądania do serwera',
     noName: 'Bez nazwy',
+    sessionExpired: 'Sesja zakończona z powodu braku aktywności',
     untitled: 'Bez tytułu',
     noRule: 'Brak reguły',
   },

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/services/api/auth.api'
 import { isTokenExpired, useAuthStore } from '@/store/authStore'
 import { extractTokenFromUrl } from '@/utils/role'
+import { useIdleLock } from '@/hooks/useIdleLock'
 
 /**
  * Порядок входа:
@@ -13,6 +14,7 @@ import { extractTokenFromUrl } from '@/utils/role'
  */
 export default function AuthBootstrap({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
+  useIdleLock()
 
   useEffect(() => {
     let cancelled = false

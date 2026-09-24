@@ -38,6 +38,7 @@ export const de: Dictionary = {
     confirm: 'Bestätigen',
     requestError: 'Serveranfrage fehlgeschlagen',
     noName: 'Kein Name',
+    sessionExpired: 'Sitzung wegen Inaktivität beendet',
     untitled: 'Ohne Titel',
     noRule: 'Keine Regel',
   },

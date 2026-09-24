@@ -1,9 +1,10 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from '@/components/AppLayout'
 import AuthBootstrap from '@/components/AuthBootstrap'
 import CommandPalette from '@/components/CommandPalette'
 import RequireRole from '@/components/RequireRole'
 import Toaster from '@/components/Toaster'
+import { ROLE_HOME } from '@/utils/role'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import UsersPage from '@/pages/UsersPage'
 import UserDetailPage from '@/pages/UserDetailPage'
@@ -95,6 +96,47 @@ export default function App() {
               <AppLayout>
                 <RequireRole path="/command-center">
                   <CommandCenterPage />
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          {/* Именные входы по ролям: своя роль проходит, чужая видит 403. Замок — токен, не путь. */}
+          <Route
+            path="/superadmin"
+            element={
+              <AppLayout>
+                <RequireRole roles={['SuperAdmin']}>
+                  <Navigate to={ROLE_HOME.SuperAdmin} replace />
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AppLayout>
+                <RequireRole roles={['Admin']}>
+                  <Navigate to={ROLE_HOME.Admin} replace />
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/moderator"
+            element={
+              <AppLayout>
+                <RequireRole roles={['Moderator']}>
+                  <Navigate to={ROLE_HOME.Moderator} replace />
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/analyst"
+            element={
+              <AppLayout>
+                <RequireRole roles={['Analyst']}>
+                  <Navigate to={ROLE_HOME.Analyst} replace />
                 </RequireRole>
               </AppLayout>
             }

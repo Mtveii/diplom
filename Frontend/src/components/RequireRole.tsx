@@ -2,11 +2,17 @@ import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
-import { canAccess } from '@/utils/role'
+import { canAccess, hasExactRole } from '@/utils/role'
+import type { UserRole } from '@/types/auth'
 
 interface RequireRoleProps {
   /** Ключ раздела из ROUTES_ACCESS (напр. "/members"). */
-  path: string
+  path?: string
+  /**
+   * Именной вход: пускает только перечисленные роли (чужие видят 403).
+   * Имеет приоритет над path.
+   */
+  roles?: UserRole[]
   children: ReactNode
 }
 
@@ -17,7 +23,7 @@ const SLUSH_LOGIN_URL = import.meta.env.VITE_SLUSH_URL as string | undefined
  * подхватываем из shared storage). Без токена — подсказка войти через
  * Slush, с чужой ролью — 403. Гостей нет.
  */
-export default function RequireRole({ path, children }: RequireRoleProps) {
+export default function RequireRole({ path, roles, children }: RequireRoleProps) {
   const token = useAuthStore((state) => state.accessToken)
   const role = useAuthStore((state) => state.role)
   const { t } = useLocale()
@@ -39,7 +45,11 @@ export default function RequireRole({ path, children }: RequireRoleProps) {
     )
   }
 
-  if (canAccess(path, role)) {
+  const allowed = roles
+    ? roles.some((expected) => hasExactRole(role, expected))
+    : path != null && canAccess(path, role)
+
+  if (allowed) {
     return <>{children}</>
   }
 

@@ -6,6 +6,27 @@ export const KNOWN_ROLES: readonly UserRole[] = ['SuperAdmin', 'Admin', 'Moderat
 /** Claim с ролью в JWT Slush API (ASP.NET Core Identity-стиль). Проверен живым токеном. */
 export const JWT_ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
 
+/** Домашний раздел роли (куда ведут её именные входы). */
+export const ROLE_HOME: Record<UserRole, string> = {
+  SuperAdmin: '/',
+  Admin: '/',
+  Moderator: '/members',
+  Analyst: '/analytics',
+}
+
+/** Именные входы: путь → строго одна роль. Чужой здесь всегда видит 403. */
+export const ROLE_ALIASES: Record<string, UserRole> = {
+  '/superadmin': 'SuperAdmin',
+  '/admin': 'Admin',
+  '/moderator': 'Moderator',
+  '/analyst': 'Analyst',
+}
+
+/** Точное совпадение роли (для именных входов). */
+export function hasExactRole(role: string | null | undefined, expected: UserRole): boolean {
+  return role === expected
+}
+
 /**
  * Токен из адреса (передача ключа со Slush-Front при кросс-домене).
  * Фрагмент (#access_token= / #token=) предпочтительнее query (?token=):

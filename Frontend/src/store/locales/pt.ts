@@ -38,6 +38,7 @@ export const pt: Dictionary = {
     confirm: 'Confirmar',
     requestError: 'Pedido ao servidor falhou',
     noName: 'Sem nome',
+    sessionExpired: 'Sessão terminada por inatividade',
     untitled: 'Sem título',
     noRule: 'Sem regra',
   },

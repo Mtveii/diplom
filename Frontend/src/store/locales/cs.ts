@@ -49,6 +49,7 @@ export const cs: Dictionary = {
     confirm: 'Potvrdit',
     requestError: 'Požadavek na server selhal',
     noName: 'Beze jména',
+    sessionExpired: 'Relace ukončena z důvodu nečinnosti',
     untitled: 'Bez názvu',
     noRule: 'Žádné pravidlo',
   },

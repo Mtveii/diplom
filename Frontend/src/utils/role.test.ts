@@ -9,11 +9,14 @@ import {
   decodeRoleFromToken,
   extractTokenFromUrl,
   getRoleLevel,
+  hasExactRole,
   hasOtherEffectiveSuperAdmin,
   isEffectiveSuperAdmin,
   isKnownRole,
   isSelfIdentity,
   JWT_ROLE_CLAIM,
+  ROLE_ALIASES,
+  ROLE_HOME,
   type RoleHolder,
 } from './role'
 
@@ -176,6 +179,23 @@ describe('extractTokenFromUrl', () => {
     expect(extractTokenFromUrl('?token=', '')).toBeNull()
     expect(extractTokenFromUrl('', '#access_token=')).toBeNull()
     expect(extractTokenFromUrl('?a=1', '#b=2')).toBeNull()
+  })
+})
+
+describe('role entries', () => {
+  it('maps every alias to a home of the same role', () => {
+    expect(Object.keys(ROLE_ALIASES).sort()).toEqual(['/admin', '/analyst', '/moderator', '/superadmin'])
+    for (const [alias, role] of Object.entries(ROLE_ALIASES)) {
+      expect(canAccess(ROLE_HOME[role], role)).toBe(true)
+      expect(alias.startsWith('/')).toBe(true)
+    }
+  })
+
+  it('checks exact roles', () => {
+    expect(hasExactRole('SuperAdmin', 'SuperAdmin')).toBe(true)
+    expect(hasExactRole('Admin', 'SuperAdmin')).toBe(false)
+    expect(hasExactRole('User', 'Analyst')).toBe(false)
+    expect(hasExactRole(null, 'Analyst')).toBe(false)
   })
 })
 
