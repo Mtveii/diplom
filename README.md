@@ -76,6 +76,17 @@ UI-гейты (`RequireRole`, фильтр меню, `utils/role.ts`) — тол
 ```ts
 window.location.href = import.meta.env.VITE_ADMIN_URL + '#access_token=' + response.accessToken
 ```
+- Редирект по ролям (Slush-Front, вместо одного `VITE_ADMIN_URL`): каждая роль — на свою дверь (`/superadmin`, `/admin`, `/moderator`, `/analyst`), дальше панель сама ведёт на домашний раздел. Пример:
+```ts
+const doors: Record<string, string> = {
+  superadmin: '/superadmin',
+  admin: '/admin',
+  moderator: '/moderator',
+  analyst: '/analyst',
+}
+const base = import.meta.env.VITE_ADMIN_URL.replace(/\/$/, '')
+window.location.href = base + (doors[normalizedRole ?? ''] ?? '/') + '#access_token=' + response.accessToken
+```
 
 Переменные окружения Frontend: см. `Frontend/.env.example`.
 

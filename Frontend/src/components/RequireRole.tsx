@@ -59,7 +59,10 @@ export default function RequireRole({ path, roles, children }: RequireRoleProps)
         {t.forbidden.title}
       </div>
       <h1 className="text-base sm:text-xl font-bold text-white">{t.forbidden.heading}</h1>
-      <p className="text-xs sm:text-sm text-slate-400">{t.forbidden.hint}</p>
+      <p className="text-xs sm:text-sm text-slate-400">
+        {t.forbidden.hint}
+        {role ? ` (${role})` : null}
+      </p>
       <Link to="/" className="btn-primary mt-2 h-9 px-4 text-sm">
         {t.notFound.home}
       </Link>
