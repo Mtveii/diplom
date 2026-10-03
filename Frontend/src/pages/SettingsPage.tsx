@@ -15,7 +15,7 @@ import type { AdminActionLogDto } from '@/types/analytics'
 import type { AdminUserDto, UserRole } from '@/types/auth'
 import type { NotificationChannel, NotificationChannelSettingDto } from '@/types/notification'
 
-type SettingsTab = 'channels' | 'roles' | 'security' | 'about'
+type SettingsTab = 'channels' | 'roles' | 'security'
 
 const channelLabels: Record<NotificationChannel, string> = {
   Discord: 'Discord webhook',
@@ -186,7 +186,6 @@ export default function SettingsPage() {
             { id: 'channels', label: t.settings.tabChannels },
             { id: 'roles', label: t.settings.tabRoles },
             { id: 'security', label: t.settings.tabSecurity },
-            { id: 'about', label: t.settings.tabAbout },
           ] as const
         )
           .filter((item) => item.id !== 'roles' || showRolesTab)
@@ -414,41 +413,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {tab === 'about' && (
-            <div className="card card-hud p-5">
-              <div className="card-header-hud mb-3">
-                <h3 className="card-header-hud__title">{t.settings.aboutTitle}</h3>
-              </div>
-              <div className="flex flex-col gap-3 text-sm leading-relaxed text-slate-300">
-                <p>
-                  <strong className="text-white">{t.settings.aboutLead}</strong> {t.settings.aboutText}
-                </p>
-                <div className="tech-badges pt-2">
-                  {['ASP.NET Core 8', 'PostgreSQL', 'SignalR', 'React 18', 'Recharts', 'Zustand'].map(t => (
-                    <span key={t} className="tech-badge">{t}</span>
-                  ))}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                  <div className="card card-hud card-hud--sm p-3.5 text-xs">
-                    <div className="font-semibold text-white mb-1">{t.settings.backendStack}</div>
-                    <ul className="flex flex-col gap-1 text-slate-400">
-                      {t.settings.backendItems.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="card card-hud card-hud--sm p-3.5 text-xs">
-                    <div className="font-semibold text-white mb-1">{t.settings.frontendStack}</div>
-                    <ul className="flex flex-col gap-1 text-slate-400">
-                      {t.settings.frontendItems.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

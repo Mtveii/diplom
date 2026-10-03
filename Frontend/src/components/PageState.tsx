@@ -23,16 +23,6 @@ function OfflineIcon() {
   )
 }
 
-function ForbiddenIcon() {
-  return (
-    <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      <path d="M12 15v2" />
-    </svg>
-  )
-}
-
 interface EmptyStateProps {
   icon?: ReactNode
   title: string
@@ -130,14 +120,5 @@ export function OfflineState() {
 }
 
 export function ForbiddenState() {
-  const { t } = useLocale()
-  return (
-    <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-danger-500/30 bg-danger-500/10 text-danger-400">
-        <ForbiddenIcon />
-      </div>
-      <div className="mt-1 text-sm font-medium text-slate-200">{t.pageState.forbidden}</div>
-      <div className="text-xs text-slate-500">{t.pageState.forbiddenHint}</div>
-    </div>
-  )
+  return null
 }

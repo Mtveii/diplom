@@ -1,7 +1,6 @@
 import axios, { type AxiosError } from 'axios'
 import { isTokenExpired, useAuthStore } from '@/store/authStore'
 import { getLocaleDictionary } from '@/store/localeStore'
-import { toast } from '@/store/toastStore'
 import { API_BASE_URL } from './apiBase'
 
 export { API_BASE_URL } from './apiBase'
@@ -32,11 +31,7 @@ httpClient.interceptors.response.use(
     if (error.response?.status === 401) {
       useAuthStore.getState().clearAccessToken()
     }
-    // Токен валиден, но роли не хватает: фронт-гард пропустил (или роль сменили
-    // на бэке уже после выдачи токена) — показываем 403 явно, не разлогиниваем.
-    if (error.response?.status === 403) {
-      toast.error(getLocaleDictionary().forbidden.heading)
-    }
+    // 403 глушим молча — никаких тостов Access denied.
     return Promise.reject(error)
   },
 )

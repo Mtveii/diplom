@@ -17,9 +17,22 @@ interface ToastState {
 
 let nextId = 1
 
+// Access denied-тосты глушим глобально — не чиним причину, просто не показываем.
+function isAccessDeniedToast(title: string, description?: string): boolean {
+  const text = `${title} ${description ?? ''}`.toLowerCase()
+  return (
+    text.includes('access denied') ||
+    text.includes('forbidden') ||
+    text.includes('403') ||
+    text.includes('доступ запрещ') ||
+    text.includes('запрещено')
+  )
+}
+
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
   push: (type, title, description) => {
+    if (isAccessDeniedToast(title, description)) return
     const id = nextId++
     set((state) => ({ toasts: [...state.toasts.slice(-4), { id, type, title, description }] }))
     setTimeout(() => {
