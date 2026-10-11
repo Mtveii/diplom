@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
+import ForecastToggle from '@/components/ForecastToggle'
 import Modal from '@/components/Modal'
+import { useForecastStore } from '@/store/forecastStore'
 import RoleChangeSelect from '@/components/RoleChangeSelect'
 import Spinner from '@/components/Spinner'
 import { auditApi } from '@/services/api/analytics.api'
@@ -21,7 +23,7 @@ const channelLabels: Record<NotificationChannel, string> = {
   Discord: 'Discord webhook',
   Telegram: 'Telegram bot',
   Email: 'Email (SMTP)',
-  InApp: 'In-app (SignalR)',
+  Web: 'Web push',
 }
 
 export default function SettingsPage() {
@@ -54,6 +56,8 @@ export default function SettingsPage() {
   ]
   const role = useAuthStore((state) => state.role)
   const selfIdentity = decodeIdentityFromToken(useAuthStore((state) => state.accessToken))
+  const forecastEnabled = useForecastStore((state) => state.enabled)
+  const setForecastEnabled = useForecastStore((state) => state.setEnabled)
   /** Смена ролей — только SuperAdmin; аудит/безопасность — SuperAdmin и Admin. */
   const showRolesTab = canManageRoles(role)
   const showSecurityTab = canViewSecurity(role)
@@ -249,7 +253,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {channel.channel !== 'InApp' && (
+                          {channel.channel !== 'Web' && (
                             <button onClick={() => handleOpenConfig(channel)} className="btn-ghost px-3 py-1.5 text-xs">
                               {t.settings.configure}
                             </button>
@@ -444,6 +448,18 @@ export default function SettingsPage() {
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+                <div className="card card-hud card-hud--sm p-3.5 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-white mb-0.5">{t.settings.forecastTitle}</div>
+                      <div className="text-slate-400">{t.settings.forecastDesc}</div>
+                    </div>
+                    <ForecastToggle
+                      enabled={forecastEnabled}
+                      onToggle={() => setForecastEnabled(!forecastEnabled)}
+                    />
                   </div>
                 </div>
               </div>

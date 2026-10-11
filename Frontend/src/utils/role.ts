@@ -134,6 +134,7 @@ export const ROUTES_ACCESS: Record<string, readonly UserRole[]> = {
   '/members': ['SuperAdmin', 'Admin', 'Moderator'],
   '/games': ['SuperAdmin', 'Admin', 'Moderator', 'Analyst'],
   '/analytics': ['SuperAdmin', 'Admin', 'Analyst'],
+  '/operations': ['SuperAdmin', 'Admin', 'Analyst'],
   '/command-center': ['SuperAdmin', 'Admin'],
   '/settings': ['SuperAdmin', 'Admin'],
 }

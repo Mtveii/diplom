@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
 import { canAccess, hasExactRole } from '@/utils/role'
+import { getSlushLoginUrl } from '@/utils/slush'
 import type { UserRole } from '@/types/auth'
 
 interface RequireRoleProps {
@@ -16,12 +17,11 @@ interface RequireRoleProps {
   children: ReactNode
 }
 
-const SLUSH_LOGIN_URL = import.meta.env.VITE_SLUSH_URL as string | undefined
-
 /**
- * Своей формы входа у панели нет (логин живёт в Slush-Front, токен
- * подхватываем из shared storage). Без токена — подсказка войти через
- * Slush, с чужой ролью — 403. Гостей нет.
+ * Своей формы входа у панели нет: вход только через панель Slush-Front
+ * (дефолт или VITE_SLUSH_URL, токен подхватываем из shared storage или адреса).
+ * Без токена — кнопка на панель входа Slush вместо тупикового 403.
+ * С чужой ролью — 403. Гостей нет.
  */
 export default function RequireRole({ path, roles, children }: RequireRoleProps) {
   const token = useAuthStore((state) => state.accessToken)
@@ -29,6 +29,7 @@ export default function RequireRole({ path, roles, children }: RequireRoleProps)
   const { t } = useLocale()
 
   if (!token) {
+    const slushLoginUrl = getSlushLoginUrl()
     return (
       <div className="flex h-full min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
         <div className="bg-gradient-to-br from-primary-400 to-primary-600 bg-clip-text text-6xl font-extrabold text-transparent">
@@ -36,11 +37,9 @@ export default function RequireRole({ path, roles, children }: RequireRoleProps)
         </div>
         <h1 className="text-base sm:text-xl font-bold text-white">{t.forbidden.heading}</h1>
         <p className="text-xs sm:text-sm text-slate-400">{t.forbidden.authHint}</p>
-        {SLUSH_LOGIN_URL ? (
-          <a href={SLUSH_LOGIN_URL} className="btn-primary mt-2 h-9 px-4 text-sm">
-            {t.login.submit}
-          </a>
-        ) : null}
+        <a href={slushLoginUrl} className="btn-primary mt-2 h-9 px-4 text-sm">
+          {t.login.submit}
+        </a>
       </div>
     )
   }

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { monitoringApi, type MonitoringPeriod } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
+import { toast } from '@/store/toastStore'
+import { getLocaleDictionary } from '@/store/localeStore'
 import type { ChartPoint } from '@/components/Chart'
 import type { AdminUserDto } from '@/types/auth'
 import type {
@@ -100,6 +102,7 @@ export function useMonitoringCharts() {
   const [gameTrends, setGameTrends] = useState<TopGamesPointDto[]>([])
   const [period, setPeriod] = useState<Period>('week')
   const [loading, setLoading] = useState(true)
+  const loadedOnceRef = useRef(false)
 
   const reload = useCallback(async () => {
     try {
@@ -124,13 +127,20 @@ export function useMonitoringCharts() {
       setHeatmap(mergeHeatmapWithRegistrations(heatmapData, users))
       setTopPlayers(topData)
       setGameTrends(trendsData)
+      loadedOnceRef.current = true
     } catch (err) {
-      console.warn('[useMonitoringCharts] Не удалось загрузить графики — показываю пустые данные', err)
-      setActivity([])
-      setRegistrations([])
-      setHeatmap([])
-      setTopPlayers([])
-      setGameTrends([])
+      // Stale-while-revalidate: при повторной загрузке старые данные не трогаем,
+      // иначе графики мигают пустотой при каждом переключении периода.
+      // При первой загрузке показать всё равно нечего — чистим явно.
+      console.warn('[useMonitoringCharts] Не удалось загрузить графики', err)
+      if (!loadedOnceRef.current) {
+        setActivity([])
+        setRegistrations([])
+        setHeatmap([])
+        setTopPlayers([])
+        setGameTrends([])
+      }
+      toast.error(getLocaleDictionary().common.requestError)
     } finally {
       setLoading(false)
     }

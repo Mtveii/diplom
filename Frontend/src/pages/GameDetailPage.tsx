@@ -4,8 +4,9 @@ import Breadcrumbs from '@/components/Breadcrumbs'
 import { EmptyState, PageSkeleton } from '@/components/PageState'
 import AchievementBars from '@/components/AchievementBars'
 import AlertRulesPanel from '@/components/AlertRulesPanel'
-import ForecastOverlay from '@/components/ForecastOverlay'
-import ForecastToggle from '@/components/ForecastToggle'
+import { renderForecastOverlay } from '@/components/ForecastOverlay'
+import ForecastToggle, { ForecastNote } from '@/components/ForecastToggle'
+import ForecastDeltaLine from '@/components/ForecastDeltaLine'
 import GameDetailsExtra from '@/components/GameDetailsExtra'
 import { chartTheme } from '@/styles/chartTheme'
 import StatCard from '@/components/StatCard'
@@ -14,18 +15,19 @@ import { catalogApi } from '@/services/api/catalog.api'
 import { steamApi } from '@/services/api/notifications.api'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
+import { useForecastStore } from '@/store/forecastStore'
 import { canManageAlerts } from '@/utils/role'
 import { useWatchlist } from '@/hooks/useWatchlist'
-import { buildSeriesForecast, forecastHorizon, inferStepMs, type AppliedForecast } from '@/utils/forecast'
+import { SHOW_ALL_MIN_R2, buildSeriesForecast, forecastDirection, forecastHorizon, inferStepMs, type AppliedForecast, type DeltaItem } from '@/utils/forecast'
 import { formatDay, formatFullDateTime, formatRelativeDate } from '@/utils/format'
 import type { GameDetailsDto, UnifiedGameDto } from '@/types/catalog'
 import type { GameMonitorDto } from '@/types/monitoring'
 import type { SteamNewsItemDto } from '@/types/steam'
 import {
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -169,10 +171,20 @@ export default function GameDetailPage() {
     }
   }, [stateGame, params.id, resolvedGame, resolveFailed, t])
 
-  const [forecastOn, setForecastOn] = useState(false)
+  const globalForecast = useForecastStore((state) => state.enabled)
+  const [localForecast, setLocalForecast] = useState(true)
+  const forecastOn = globalForecast && localForecast
 
-  const trendView = useMemo(() => {
-    const empty = { rows: [] as object[], from: null as string | null, applied: [] as AppliedForecast[], count: 0 }
+  interface TrendView {
+    rows: object[]
+    from: string | null
+    applied: AppliedForecast[]
+    count: number
+    deltas: Array<DeltaItem & { key: string }>
+  }
+
+  const trendView = useMemo<TrendView>(() => {
+    const empty: TrendView = { rows: [], from: null, applied: [], count: 0, deltas: [] }
     if (!monitor) {
       return empty
     }
@@ -185,7 +197,7 @@ export default function GameDetailPage() {
       positiveReviewPercent: point.positiveReviewPercent,
     }))
     if (!forecastOn || raw.length < 2) {
-      return { rows: base, from: null as string | null, applied: [] as AppliedForecast[], count: raw.length }
+      return { rows: base, from: null as string | null, applied: [] as AppliedForecast[], count: raw.length, deltas: [] as TrendView['deltas'] }
     }
     const specs: Array<{
       key: string
@@ -209,6 +221,7 @@ export default function GameDetailPage() {
       (_, h) => ({ timestamp: formatDay(new Date(lastRawTime + step * (h + 1)).toISOString(), locale) }),
     )
     const applied: AppliedForecast[] = []
+    const deltas: Array<DeltaItem & { key: string }> = []
     for (const spec of specs) {
       const values: number[] = []
       const times: number[] = []
@@ -227,6 +240,7 @@ export default function GameDetailPage() {
         color: spec.color,
         min: spec.min,
         max: spec.max,
+        minR2: SHOW_ALL_MIN_R2,
         horizon,
         stepMs: step,
       })
@@ -234,12 +248,22 @@ export default function GameDetailPage() {
         continue
       }
       applied.push({ key: spec.key, label: spec.label, color: spec.color, axis: spec.axis })
+      const specDelta = forecastDirection(values, result)
+      if (specDelta && values.length > 0) {
+        deltas.push({
+          key: spec.key,
+          color: spec.color,
+          current: values[values.length - 1],
+          percent: specDelta.percent,
+          direction: specDelta.direction,
+        })
+      }
       result.points.forEach((forecastPoint, index) => {
         futureRows[index][spec.key] = forecastPoint.value
         futureRows[index][`${spec.key}Range`] = [forecastPoint.lower, forecastPoint.upper]
       })
     }
-    return { rows: [...base, ...futureRows], from: formatDay(new Date(lastRawTime).toISOString(), locale), applied, count: raw.length }
+    return { rows: [...base, ...futureRows], from: formatDay(new Date(lastRawTime).toISOString(), locale), applied, deltas, count: raw.length }
   }, [monitor, periodDays, forecastOn, locale, t])
 
   if (!game) {
@@ -414,9 +438,12 @@ export default function GameDetailPage() {
                       {period.label}
                     </button>
                   ))}
-                  {trendView.count >= 2 && (
-                    <ForecastToggle enabled={forecastOn} onToggle={() => setForecastOn((prev) => !prev)} />
-                  )}
+                  <ForecastToggle
+                    enabled={forecastOn}
+                    onToggle={() => setLocalForecast((prev) => !prev)}
+                    disabled={trendView.count < 2}
+                    disabledReason={t.forecast.needData}
+                  />
                 </div>
               </div>
               {loading ? (
@@ -425,7 +452,7 @@ export default function GameDetailPage() {
                 <EmptyState title={t.gameDetail.noPriceData} description={t.gameDetail.noTrendYet} />
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={trendView.rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <ComposedChart data={trendView.rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
                     <YAxis yAxisId="percent" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -458,10 +485,14 @@ export default function GameDetailPage() {
                     <Line yAxisId="percent" dataKey="positiveReviewPercent" name={t.catalog.seriesPositive} stroke="#2dd4bf" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                     <Line yAxisId="percent" dataKey="discountPercent" name={t.catalog.seriesDiscount} stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                     <Line yAxisId="price" dataKey="price" name={t.catalog.seriesPrice} stroke="#a78bfa" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    <ForecastOverlay applied={trendView.applied} from={trendView.from} />
-                  </LineChart>
+                    {renderForecastOverlay(trendView.applied, trendView.from, t.forecast.suffix)}
+                  </ComposedChart>
                 </ResponsiveContainer>
               )}
+              <ForecastNote
+                visible={forecastOn && trendView.count >= 2 && trendView.applied.length === 0}
+              />
+              <ForecastDeltaLine items={trendView.deltas} />
             </div>
           </div>
         )}
@@ -498,13 +529,16 @@ export default function GameDetailPage() {
                       {period.label}
                     </button>
                   ))}
-                  {trendView.count >= 2 && (
-                    <ForecastToggle enabled={forecastOn} onToggle={() => setForecastOn((prev) => !prev)} />
-                  )}
+                  <ForecastToggle
+                    enabled={forecastOn}
+                    onToggle={() => setLocalForecast((prev) => !prev)}
+                    disabled={trendView.count < 2}
+                    disabledReason={t.forecast.needData}
+                  />
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={trendView.rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <ComposedChart data={trendView.rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
                   <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -525,15 +559,22 @@ export default function GameDetailPage() {
                     }}
                   />
                   <Line dataKey="positiveReviewPercent" name={t.catalog.seriesPositive} stroke="#2dd4bf" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                  <ForecastOverlay
-                    applied={trendView.applied
+                  {renderForecastOverlay(
+                    trendView.applied
                       .filter((spec) => spec.key === 'positiveReviewPercent')
-                      .map((spec) => ({ key: spec.key, label: spec.label, color: spec.color }))}
-                    from={trendView.from}
-                  />
-                </LineChart>
+                      .map((spec) => ({ key: spec.key, label: spec.label, color: spec.color })),
+                    trendView.from,
+                    t.forecast.suffix,
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
+            <ForecastNote
+              visible={forecastOn && trendView.count >= 2 && trendView.applied.length === 0}
+            />
+            <ForecastDeltaLine
+              items={trendView.deltas.filter((item) => item.key === 'positiveReviewPercent')}
+            />
             {details && details.reviews.length > 0 && (
               <div className="card card-hud p-5">
                 <div className="card-header-hud mb-3">

@@ -1,53 +1,61 @@
-import { Fragment } from 'react'
 import { Area, Line, ReferenceLine } from 'recharts'
 import { chartTheme } from '@/styles/chartTheme'
-import { useLocale } from '@/hooks/useLocale'
 import type { AppliedForecast } from '@/utils/forecast'
 
-interface ForecastOverlayProps {
-  applied: AppliedForecast[]
-  /** Мітки осі X останньої історичної точки — межа «факт / прогноз». */
-  from: string | null
-}
-
 /**
- * Візуальне відокремлення прогнозу: пунктир + напівпрозорий коридор +
- * сіра межа «зараз» + окремий запис у легенді.
+ * Оверлей прогнозу: пунктир + коридор + межа «зараз».
+ *
+ * ВАЖЛИВО: це НЕ React-компонент, а функція, що повертає масив элементов.
+ * Recharts аналізує дітей чарту статично (findAllByType) і НЕ бачить
+ * графічні примітиви всередині кастомних компонентів — обгортка-компонент
+ * мовчки викидається без помилок. Тому тільки inline-масив напряму в чарт.
+ * Чарт-батько зобов'язаний бути ComposedChart (однотипні чарты так само
+ * викидають чужі серії).
  */
-export default function ForecastOverlay({ applied, from }: ForecastOverlayProps) {
-  const { t } = useLocale()
+export function renderForecastOverlay(
+  applied: AppliedForecast[],
+  from: string | null,
+  suffix: string,
+): React.ReactNode[] {
   if (applied.length === 0) {
-    return null
+    return []
   }
-  return (
-    <>
-      {applied.map((spec) => (
-        <Fragment key={spec.key}>
-          <Area
-            yAxisId={spec.axis}
-            type="monotone"
-            dataKey={`${spec.key}Range`}
-            legendType="none"
-            stroke="none"
-            fill={spec.color}
-            fillOpacity={0.12}
-            connectNulls
-            isAnimationActive={false}
-          />
-          <Line
-            yAxisId={spec.axis}
-            type="monotone"
-            dataKey={spec.key}
-            name={`${spec.label} — ${t.forecast.suffix}`}
-            stroke={spec.color}
-            strokeWidth={2}
-            strokeDasharray="6 4"
-            dot={false}
-            connectNulls
-          />
-        </Fragment>
-      ))}
-      {from && <ReferenceLine x={from} stroke={chartTheme.axisLine} strokeDasharray="4 4" />}
-    </>
-  )
+  return [
+    ...applied.flatMap((spec) => [
+      <Area
+        key={`${spec.key}-range`}
+        yAxisId={spec.axis}
+        type="monotone"
+        dataKey={`${spec.key}Range`}
+        legendType="none"
+        stroke="none"
+        fill={spec.color}
+        fillOpacity={0.12}
+        connectNulls
+        isAnimationActive={false}
+      />,
+      <Line
+        key={`${spec.key}-line`}
+        yAxisId={spec.axis}
+        type="linear"
+        dataKey={spec.key}
+        name={`${spec.label} — ${suffix}`}
+        stroke={spec.color}
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        dot={false}
+        connectNulls
+      />,
+    ]),
+    ...(from
+      ? [
+          <ReferenceLine
+            key="forecast-now"
+            x={from}
+            stroke={chartTheme.axisLine}
+            strokeDasharray="4 4"
+          />,
+        ]
+      : []),
+  ]
 }

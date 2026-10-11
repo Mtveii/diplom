@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Area, AreaChart, CartesianGrid, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { chartTheme } from '@/styles/chartTheme'
 import { useLocale } from '@/hooks/useLocale'
 import { formatDayMonth, formatFullDateTime } from '@/utils/format'
@@ -35,7 +35,7 @@ export interface ChartForecast {
 interface ChartProps {
   data: ChartPoint[]
   label: string
-  height?: number
+  height?: number | string
   color?: string
   /** Вторая серия (например, «Новые аккаунты») на общей оси времени. */
   secondary?: ChartSecondarySeries
@@ -92,7 +92,9 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
   return (
     <div className="w-full min-w-0" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+        {/* ComposedChart, а не AreaChart: прогноз мешает Area и Line, а
+            однотипные чарты молча выкидывают чужие серии из state. */}
+        <ComposedChart data={rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
           <defs>
             <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.35} />
@@ -164,7 +166,7 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
                 isAnimationActive={false}
               />
               <Line
-                type="monotone"
+                type="linear"
                 dataKey={`${forecast.target}F`}
                 name={`${forecast.label} — ${t.forecast.suffix}`}
                 stroke={forecast.color}
@@ -178,7 +180,7 @@ export default function Chart({ data, label, height = 280, color = '#60a5fa', se
           {forecastFrom && (
             <ReferenceLine x={forecastFrom} stroke={chartTheme.axisLine} strokeDasharray="4 4" />
           )}
-        </AreaChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )

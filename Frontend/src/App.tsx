@@ -6,6 +6,7 @@ import RequireRole from '@/components/RequireRole'
 import Toaster from '@/components/Toaster'
 import { ROLE_HOME } from '@/utils/role'
 import AnalyticsPage from '@/pages/AnalyticsPage'
+import OperationsPage from '@/pages/OperationsPage'
 import UsersPage from '@/pages/UsersPage'
 import UserDetailPage from '@/pages/UserDetailPage'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -76,6 +77,16 @@ export default function App() {
               <AppLayout>
                 <RequireRole path="/analytics">
                   <AnalyticsPage />
+                </RequireRole>
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/operations"
+            element={
+              <AppLayout>
+                <RequireRole path="/operations">
+                  <OperationsPage />
                 </RequireRole>
               </AppLayout>
             }

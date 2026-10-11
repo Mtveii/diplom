@@ -1,5 +1,4 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
-import ConfirmModal from '@/components/ConfirmModal'
 import { alertsApi } from '@/services/api/alerts.api'
 import { notificationsApi } from '@/services/api/notifications.api'
 import { useLocale } from '@/hooks/useLocale'
@@ -7,17 +6,17 @@ import { toast } from '@/store/toastStore'
 import type { AlertCondition, AlertRuleDto, AlertRuleType } from '@/types/alert'
 import type { NotificationChannel } from '@/types/notification'
 
-/** NewsRelease в Slush API отсутствует (RuleType только 0–2) — из UI убран. */
-const ruleTypes: AlertRuleType[] = ['NoLoginFor', 'ReviewDrop', 'DiscountStarted']
+/** Типы правил — 1-в-1 Slush.Domain.Enums.RuleType (строки, не id). */
+const ruleTypes: AlertRuleType[] = ['ClanOnlineDrop', 'PlayerOffline', 'DiscountAppeared']
 const conditions: AlertCondition[] = ['LessThan', 'GreaterThan', 'Equals']
 
-const CHANNELS: NotificationChannel[] = ['Telegram', 'Discord', 'Email', 'InApp']
+const CHANNELS: NotificationChannel[] = ['Telegram', 'Discord', 'Email', 'Web']
 
 const CHANNEL_LABELS: Record<NotificationChannel, string> = {
   Telegram: 'Telegram',
   Discord: 'Discord',
   Email: 'Email',
-  InApp: 'InApp',
+  Web: 'Web',
 }
 
 interface AlertRulesPanelProps {
@@ -27,10 +26,9 @@ interface AlertRulesPanelProps {
 export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps) {
   const { t } = useLocale()
   const ruleLabels: Record<AlertRuleType, string> = {
-    NoLoginFor: t.alerts.ruleNoLogin,
-    ReviewDrop: t.alerts.ruleReviewDrop,
-    DiscountStarted: t.alerts.ruleDiscount,
-    NewsRelease: t.alerts.ruleNews,
+    ClanOnlineDrop: t.alerts.ruleClanDrop,
+    PlayerOffline: t.alerts.rulePlayerOffline,
+    DiscountAppeared: t.alerts.ruleDiscountAppeared,
   }
   const conditionLabels: Record<AlertCondition, string> = {
     LessThan: t.alerts.condBelow,
@@ -39,13 +37,13 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
   }
   const [rules, setRules] = useState<AlertRuleDto[]>([])
   const [name, setName] = useState('')
-  const [type, setType] = useState<AlertRuleType>('ReviewDrop')
+  const [type, setType] = useState<AlertRuleType>('ClanOnlineDrop')
   const [targetId, setTargetId] = useState('')
   const [condition, setCondition] = useState<AlertCondition>('LessThan')
   const [threshold, setThreshold] = useState('')
-  const [channels, setChannels] = useState<Set<NotificationChannel>>(new Set(['InApp']))
+  const [channels, setChannels] = useState<Set<NotificationChannel>>(new Set())
+  const [channelConfigs, setChannelConfigs] = useState<Record<string, string | null>>({})
   const [ruleChannel, setRuleChannel] = useState<NotificationChannel>('Telegram')
-  const [deleteRule, setDeleteRule] = useState<AlertRuleDto | null>(null)
   const [saving, setSaving] = useState(false)
 
   const reload = useCallback(async () => {
@@ -59,7 +57,10 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
   useEffect(() => {
     notificationsApi
       .getChannels()
-      .then((settings) => setChannels(new Set(settings.filter((s) => s.isEnabled).map((s) => s.channel))))
+      .then((settings) => {
+        setChannels(new Set(settings.filter((s) => s.isEnabled).map((s) => s.channel)))
+        setChannelConfigs(Object.fromEntries(settings.map((s) => [s.channel, s.configJson])))
+      })
       .catch(() => undefined)
   }, [])
 
@@ -80,7 +81,8 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
       return next
     })
     try {
-      await notificationsApi.updateChannel(channel, enabled, null)
+      // Конфиг пересылаем как есть: иначе PUT с null затёр бы вебхук/токен канала.
+      await notificationsApi.updateChannel(channel, enabled, channelConfigs[channel] ?? null)
     } catch (err) {
       toast.error(t.alerts.channelError, err instanceof Error ? err.message : undefined)
     }
@@ -113,53 +115,10 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
     }
   }
 
-  const handleToggle = async (rule: AlertRuleDto) => {
-    try {
-      await alertsApi.toggleRule(rule.id, !rule.isActive)
-      await reload()
-      toast.success(rule.isActive ? t.alerts.disabledToast : t.alerts.enabledToast, rule.name)
-    } catch (err) {
-      toast.error(t.alerts.error, err instanceof Error ? err.message : undefined)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteRule) {
-      return
-    }
-    setSaving(true)
-    try {
-      await alertsApi.deleteRule(deleteRule.id)
-      toast.success(t.alerts.deleted, deleteRule.name)
-      setDeleteRule(null)
-      await reload()
-    } catch (err) {
-      toast.error(t.alerts.error, err instanceof Error ? err.message : undefined)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleEvaluate = async () => {
-    try {
-      await alertsApi.evaluate()
-      await reload()
-      toast.success(t.alerts.evaluated, t.alerts.evaluatedDesc)
-    } catch (err) {
-      toast.error(t.alerts.evaluateError, err instanceof Error ? err.message : undefined)
-    }
-  }
-
   return (
     <section className="card card-hud flex flex-col gap-6 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-bold text-white">{t.alerts.builder}</h3>
-        <button
-          onClick={() => void handleEvaluate()}
-          className="btn-ghost bg-warning-500/10 px-3 py-1.5 text-xs text-warning-400 hover:bg-warning-500/20"
-        >
-          {t.alerts.evaluateNow}
-        </button>
       </div>
 
       <div className="card-hud card-hud--sm rounded-xl border border-primary-500/30 bg-surface-950/40 p-4">
@@ -185,7 +144,7 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
             <input
               value={threshold}
               onChange={(event) => setThreshold(event.target.value)}
-              placeholder={type === 'NoLoginFor' ? t.alerts.thresholdDays : type === 'ReviewDrop' ? '%' : '$'}
+              placeholder={type === 'PlayerOffline' ? t.alerts.thresholdDays : type === 'DiscountAppeared' ? '$' : ''}
               type="number"
               className="input h-10 w-28"
             />
@@ -277,39 +236,13 @@ export default function AlertRulesPanel({ selectedAppId }: AlertRulesPanelProps)
                 <div className="text-xs text-slate-500">
                   {ruleLabels[rule.type as AlertRuleType] ?? t.alerts.typeFallback(rule.type)} · {rule.targetId ? `App ${rule.targetId}` : t.alerts.globalTarget} ·{' '}
                   {conditionLabels[rule.condition as AlertCondition] ?? rule.condition} {rule.thresholdValue}
-                  {rule.channel ? ` · ${CHANNEL_LABELS[rule.channel]}` : ''}
+                  {rule.channel ? ` · ${CHANNEL_LABELS[rule.channel as NotificationChannel] ?? rule.channel}` : ''}
                 </div>
               </div>
-              <button
-                onClick={() => void handleToggle(rule)}
-                className={`rounded-lg px-2.5 py-1 text-xs transition-colors ${
-                  rule.isActive
-                    ? 'border border-surface-700 text-slate-300 hover:bg-surface-800'
-                    : 'border border-success-600/50 bg-success-500/10 text-success-400 hover:bg-success-500/20'
-                }`}
-              >
-                {rule.isActive ? t.alerts.disable : t.alerts.enable}
-              </button>
-              <button
-                onClick={() => setDeleteRule(rule)}
-                className="rounded-lg border border-rose-800/60 px-2.5 py-1 text-xs text-rose-400 transition-colors hover:bg-rose-950/50"
-              >
-                {t.common.delete}
-              </button>
             </div>
           ))
         )}
       </div>
-
-      <ConfirmModal
-        open={deleteRule !== null}
-        title={t.alerts.deleteTitle}
-        description={deleteRule ? t.alerts.deleteDesc(deleteRule.name) : ''}
-        confirmLabel={t.common.delete}
-        loading={saving}
-        onConfirm={() => void handleDelete()}
-        onClose={() => setDeleteRule(null)}
-      />
     </section>
   )
 }

@@ -5,8 +5,11 @@ import { alertsApi } from '@/services/api/alerts.api'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
 import { useLocale } from '@/hooks/useLocale'
+import { useOnlineUsers } from '@/hooks/useOnlineUsers'
 import { formatDayMonth, formatNumber } from '@/utils/format'
+import { describeGeoUser } from '@/utils/geo'
 import type { AlertHistoryDto } from '@/types/alert'
+import type { OnlineUserDto, TopGamesPointDto } from '@/types/monitoring'
 
 interface PersonnelStats {
   total: number
@@ -19,7 +22,6 @@ interface PersonnelStats {
 
 interface BarItem {
   day: string
-  orange: number
   cyan: number
   peak?: boolean
 }
@@ -29,6 +31,12 @@ export default function CommandCenterPage() {
   const formatCount = (value: number): string => formatNumber(value, locale)
   const [timeStr, setTimeStr] = useState('15:21:03')
   const [dateStr, setDateStr] = useState('2026.08.18')
+
+  const { users: onlineUsers } = useOnlineUsers()
+  const geoRoster = useMemo(
+    () => onlineUsers.map((user) => describeGeoUser(user, t.geo.unknown, t.common.noName)),
+    [onlineUsers, t],
+  )
 
   // По умолчанию — 0, как требует ТЗ (если БД пустая или не отвечает — останется 0)
   const [stats, setStats] = useState<PersonnelStats>({
@@ -42,13 +50,14 @@ export default function CommandCenterPage() {
   const [bars, setBars] = useState<BarItem[]>(
     Array.from({ length: 11 }, (_, index) => ({
       day: String(index + 2).padStart(2, '0'),
-      orange: 0,
       cyan: 0,
     })),
   )
   const [peakValue, setPeakValue] = useState(0)
   const [stream, setStream] = useState<AlertHistoryDto[]>([])
   const [alertsTrend, setAlertsTrend] = useState<AlertHistoryDto[]>([])
+  const [onlineList, setOnlineList] = useState<OnlineUserDto[]>([])
+  const [topGames, setTopGames] = useState<TopGamesPointDto[]>([])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -72,14 +81,16 @@ export default function CommandCenterPage() {
       // Параллельно парсим БД, каждая ветка отдельно обрабатывает ошибку -> 0
       const summaryPromise = monitoringApi.summary().catch(() => null)
       const usersPromise = usersApi.getUsers().catch(() => [] as never)
-      const activityPromise = monitoringApi.activity('week').catch(() => [])
       const historyPromise = alertsApi.getHistory(100).catch(() => [] as AlertHistoryDto[])
+      const onlinePromise = monitoringApi.onlineUsers().catch((): OnlineUserDto[] => [])
+      const trendsPromise = monitoringApi.gameTrends().catch((): TopGamesPointDto[] => [])
 
-      const [summaryResult, usersResult, activityResult, historyResult] = await Promise.all([
+      const [summaryResult, usersResult, historyResult, onlineResult, trendsResult] = await Promise.all([
         summaryPromise,
         usersPromise,
-        activityPromise,
         historyPromise,
+        onlinePromise,
+        trendsPromise,
       ])
 
       if (cancelled) return
@@ -102,7 +113,7 @@ export default function CommandCenterPage() {
         networkStability,
       })
 
-      // Динамика активности: берём последние 11 дней, оранжевый = онлайн, бирюзовый = новые аккаунты
+      // Динамика активности: берём последние 11 дней, бирюзовый = новые аккаунты
       const now = new Date()
       const days: BarItem[] = []
       let peak = 0
@@ -112,28 +123,25 @@ export default function CommandCenterPage() {
         const dayKey = date.toISOString().slice(0, 10)
         const label = String(date.getDate()).padStart(2, '0')
 
-        const activityForDay = (Array.isArray(activityResult) ? activityResult : []).filter(
-          (point) => point.timestamp.slice(0, 10) === dayKey,
-        )
-        const onlineForDay = activityForDay.length > 0 ? Math.max(...activityForDay.map((point) => point.onlineCount)) : 0
         const registrationsForDay = users.filter((user) => user.createdAt.slice(0, 10) === dayKey).length
 
-        if (onlineForDay > peak) peak = onlineForDay
         if (registrationsForDay > peak) peak = registrationsForDay
 
-        days.push({ day: label, orange: onlineForDay, cyan: registrationsForDay })
+        days.push({ day: label, cyan: registrationsForDay })
       }
       // Помечаем пиковый столбец
       const maxValue = peak
       const withPeak = days.map((item) => ({
         ...item,
-        peak: maxValue > 0 && (item.orange === maxValue || item.cyan === maxValue),
+        peak: maxValue > 0 && item.cyan === maxValue,
       }))
       setBars(withPeak)
       setPeakValue(maxValue)
       const fullHistory = Array.isArray(historyResult) ? historyResult : []
       setAlertsTrend(fullHistory)
       setStream(fullHistory.slice(0, 8))
+      setOnlineList(Array.isArray(onlineResult) ? onlineResult : [])
+      setTopGames(Array.isArray(trendsResult) ? trendsResult : [])
     }
 
     void load()
@@ -404,6 +412,34 @@ export default function CommandCenterPage() {
               <UsersGlobe />
             </ErrorBoundary>
           </div>
+
+          {/* Гео-ростер онлайна: те же данные, что на глобусе, но текстом.
+              Видно даже без WebGL и без координат у юзера. */}
+          <div className="absolute inset-x-3 bottom-3 z-10 rounded-xl border border-blue-900/60 bg-[#040812]/90 p-3 backdrop-blur-md">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-success-400 animate-pulse" />
+                {t.commandCenter.geoRoster}
+              </h3>
+              <span className="font-mono text-[10px] text-slate-400">{geoRoster.length}</span>
+            </div>
+            {geoRoster.length === 0 ? (
+              <div className="py-1 text-center text-[11px] text-slate-500">{t.commandCenter.geoEmpty}</div>
+            ) : (
+              <div className="flex max-h-24 flex-col gap-1 overflow-y-auto pr-1">
+                {geoRoster.map((entry, index) => (
+                  <div
+                    key={`${entry.name}-${index}`}
+                    className="flex items-center gap-2 rounded bg-blue-950/30 px-2 py-1 font-mono text-[10px]"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success-400" />
+                    <span className="truncate font-bold text-slate-200">{entry.name}</span>
+                    <span className="truncate text-slate-400">{entry.place}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column (Charts & Flight Table) */}
@@ -427,9 +463,6 @@ export default function CommandCenterPage() {
 
             <div className="flex items-center gap-4 text-[10px] text-slate-400 mb-2">
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-orange-500" /> {t.commandCenter.legendOnline}
-              </span>
-              <span className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-sm bg-success-400" /> {t.commandCenter.legendNew}
               </span>
             </div>
@@ -440,9 +473,8 @@ export default function CommandCenterPage() {
                 const max = Math.max(1, peakValue)
                 return (
                   <div key={item.day} className="flex flex-col items-center gap-1 flex-1 h-full justify-end">
-                    {item.peak && max > 0 && <span className="text-[9px] font-bold text-orange-400">{max}</span>}
+                    {item.peak && max > 0 && <span className="text-[9px] font-bold text-success-400">{max}</span>}
                     <div className="w-full flex items-end justify-center gap-0.5 h-20">
-                      <div className="w-2 bg-orange-500 rounded-t" style={{ height: `${(item.orange / max) * 100}%` }} />
                       <div className="w-2 bg-success-400 rounded-t" style={{ height: `${(item.cyan / max) * 100}%` }} />
                     </div>
                     <span className="text-[9px] text-slate-500">{item.day}</span>
@@ -480,6 +512,92 @@ export default function CommandCenterPage() {
                     <span className="truncate text-[8px] text-slate-600">{index % 2 === 0 ? item.day : ''}</span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Panel: хто зараз в мережі — GET /Monitoring/online (нік, гра, місто/країна) */}
+          <div className="relative rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
+            <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
+            <div className="absolute bottom-0 left-0 h-2 w-2 border-b-2 border-l-2 border-primary-400" />
+            <div className="absolute bottom-0 right-0 h-2 w-2 border-b-2 border-r-2 border-primary-400" />
+
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-success-400 animate-pulse" />
+                {t.dashboard.onlineUsers}
+              </h3>
+              <span className="text-[10px] text-slate-500 font-mono">{formatCount(onlineList.length)}</span>
+            </div>
+
+            {onlineList.length === 0 ? (
+              <div className="py-3 text-center text-[11px] text-slate-500">{t.dashboard.nobodyOnline}</div>
+            ) : (
+              <div className="flex max-h-44 flex-col gap-1 overflow-y-auto pr-1">
+                {[...onlineList]
+                  .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
+                  .map((member) => (
+                    <div key={member.steamId} className="flex items-center gap-2 rounded px-1 py-1 hover:bg-blue-900/40">
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          member.currentGame ? 'bg-primary-400' : 'bg-success-400'
+                        }`}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">
+                        {member.nickname}
+                        <span className="ml-1.5 text-[10px] text-slate-500">
+                          {member.city && member.country ? `${member.city}, ${member.country}` : t.geo.unknown}
+                        </span>
+                      </span>
+                      {member.currentGame ? (
+                        <span className="max-w-28 truncate text-[10px] text-primary-300" title={member.currentGame}>
+                          {member.currentGame}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-[10px] text-success-400">{t.dashboard.onlineStatus}</span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Panel: топ ігор мережі — GET /Monitoring/game-trends */}
+          <div className="relative rounded-xl border border-blue-900/60 bg-blue-950/20 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="absolute top-0 left-0 h-2 w-2 border-t-2 border-l-2 border-primary-400" />
+            <div className="absolute top-0 right-0 h-2 w-2 border-t-2 border-r-2 border-primary-400" />
+            <div className="absolute bottom-0 left-0 h-2 w-2 border-b-2 border-l-2 border-primary-400" />
+            <div className="absolute bottom-0 right-0 h-2 w-2 border-b-2 border-r-2 border-primary-400" />
+
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary-400" />
+                {t.dashboard.topGames}
+              </h3>
+            </div>
+
+            {topGames.length === 0 ? (
+              <div className="py-3 text-center text-[11px] text-slate-500">{t.common.noData}</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {topGames.map((game) => {
+                  const max = Math.max(1, ...topGames.map((item) => item.count))
+                  return (
+                    <div key={game.name} className="flex items-center gap-2 text-[11px]">
+                      <span className="min-w-0 flex-1 truncate text-slate-300" title={game.name}>
+                        {game.name}
+                      </span>
+                      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-blue-950">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary-600 to-primary-400"
+                          style={{ width: `${(game.count / max) * 100}%` }}
+                        />
+                      </div>
+                      <span className="w-6 text-right font-mono text-primary-300">{formatCount(game.count)}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

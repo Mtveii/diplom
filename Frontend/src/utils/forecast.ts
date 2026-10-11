@@ -62,6 +62,12 @@ export interface AppliedForecast {
 const DEFAULT_LAMBDA = 0.92
 const DEFAULT_OUTLIER_SIGMA = 2.5
 const DEFAULT_MIN_R2 = 0.3
+/**
+ * Режим «показувати завжди» для витринных прогнозів: власник свідомо хоче
+ * лінію при будь-яких даних (точність не гарантується). R² нижче нуля —
+ * все одно малюємо, лише точок має бути ≥ 2.
+ */
+export const SHOW_ALL_MIN_R2 = Number.NEGATIVE_INFINITY
 /** 95% довірчий коридор для нормального розподілу залишків. */
 const CONFIDENCE_Z = 1.96
 const DAY_MS = 24 * 3600_000
@@ -203,4 +209,96 @@ export function buildSeriesForecast(input: BuildForecastInput): SeriesForecast |
   }
 
   return { label, color, points, fromTime: lastTime, r2: round2(r2) }
+}
+
+export type ForecastDirection = 'up' | 'down' | 'flat'
+
+export interface ForecastDelta {
+  direction: ForecastDirection
+  /** Изменение последней прогнозной точки к последнему факту, %. */
+  percent: number
+  target: number
+}
+
+/**
+ * Направление и сила тренда: куда ведёт прогноз относительно факта.
+ * Деление на ноль и ненадёжные прогнозы → null (не показываем).
+ */
+export function forecastDirection(values: number[], forecast: SeriesForecast | null): ForecastDelta | null {
+  if (!forecast || forecast.points.length === 0) {
+    return null
+  }
+  const finite = values.filter((value) => Number.isFinite(value))
+  if (finite.length === 0) {
+    return null
+  }
+  const last = finite[finite.length - 1]
+  const target = forecast.points[forecast.points.length - 1].value
+  if (!Number.isFinite(target)) {
+    return null
+  }
+  // Нульова база: 0→0 — це стабільні «нуль відсотків», а не помилка.
+  if (last === 0) {
+    return target === 0 ? { direction: 'flat' as const, percent: 0, target: 0 } : null
+  }
+  const percent = Math.round(((target - last) / Math.abs(last)) * 1000) / 10
+  const direction: ForecastDirection = Math.abs(percent) < 0.5 ? 'flat' : percent > 0 ? 'up' : 'down'
+  return { direction, percent, target: round2(target) }
+}
+
+/** Строка «сейчас → прогноз» для ForecastDeltaLine. */
+export interface DeltaItem {
+  color: string
+  current: number
+  percent: number
+  direction: ForecastDirection
+}
+
+/**
+ * Дельта серии одной строкой: строит прогноз и считает направление.
+ * null — показывать нечего (мало данных, ненадёжно, ноль без цели).
+ */
+export function deltaForSeries(
+  values: number[],
+  times: number[],
+  color: string,
+  options?: ForecastOptions,
+): DeltaItem | null {
+  const finite = values.filter((value) => Number.isFinite(value))
+  if (finite.length === 0) {
+    return null
+  }
+  const forecast = buildSeriesForecast({ values, times, label: '', color: '', min: 0, ...options })
+  const delta = forecastDirection(values, forecast)
+  if (!delta) {
+    return null
+  }
+  return { color, current: finite[finite.length - 1], percent: delta.percent, direction: delta.direction }
+}
+
+export type ForecastRow = Record<string, string | number | [number, number] | null>
+
+/**
+ * Подмешивает прогноз к строкам графика для ForecastOverlay:
+ * ключ `${key}` (пунктир) и `${key}Range` (коридор). Будущие точки
+ * дописываются в конец, история не трогается. formatTime приводит
+ * ISO-метки будущего к формату оси (напр. локальные дни).
+ */
+export function withForecastRange<T extends Record<string, string | number | null>>(
+  rows: readonly T[],
+  timeKey: keyof T & string,
+  key: string,
+  forecast: SeriesForecast | null,
+  formatTime?: (iso: string) => string,
+): Array<T | ForecastRow> {
+  if (!forecast || forecast.points.length === 0) {
+    return rows.slice()
+  }
+  const fmt = formatTime ?? ((iso) => iso)
+  const seen = new Set<string | number | null>(rows.map((row) => row[timeKey]))
+  const future = forecast.points
+    .map((point) => ({ time: fmt(point.timestamp), value: point.value, range: [point.lower, point.upper] as [number, number] }))
+    .filter((point) => !seen.has(point.time))
+    .map((point) => ({ [timeKey]: point.time, [key]: point.value, [`${key}Range`]: point.range }))
+  return [...rows.slice(), ...future]
 }

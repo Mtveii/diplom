@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { alertsApi } from '@/services/api/alerts.api'
 import { offReconnected, offReconnecting, onReconnected, onReconnecting } from '@/services/signalr'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
 import { canAccess, getRoleLevel } from '@/utils/role'
-import Breadcrumbs from './Breadcrumbs'
+import { getSlushLoginUrl } from '@/utils/slush'
 import LanguageSwitcher from './LanguageSwitcher'
 import NotificationBell from './NotificationBell'
 
@@ -70,6 +70,15 @@ function useNavItems(): NavItem[] {
     ),
   },
   {
+    to: '/operations',
+    label: t.nav.operations,
+    icon: (
+      <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    ),
+  },
+  {
     to: '/command-center',
     label: t.nav.commandCenter,
     icon: (
@@ -122,7 +131,6 @@ function useConnectionStatus(): ConnectionStatus {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { t } = useLocale()
   const role = useAuthStore((state) => state.role)
   const navItems = useNavItems().filter((item) => canAccess(item.to, role))
@@ -184,9 +192,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <div className="text-[10px] text-slate-400">{t.nav.brandSubtitle}</div>
               </div>
             </div>
-            <div className="hidden min-w-0 lg:block lg:ml-4">
-              <Breadcrumbs />
-            </div>
           </div>
 
           <div className="hidden items-center gap-1.5 overflow-x-auto lg:flex lg:flex-1 lg:justify-center">
@@ -243,7 +248,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <button
               onClick={() => {
                 useAuthStore.getState().clearAccessToken()
-                navigate('/', { replace: true })
+                // Вихід = назад на логін-панель Slush-Front (вона єдина).
+                window.location.href = getSlushLoginUrl()
               }}
               title={t.nav.logout}
               aria-label={t.nav.logout}
