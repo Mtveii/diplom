@@ -94,13 +94,14 @@ describe('canBanUser', () => {
 
 describe('canAccess', () => {
   it('opens everything for SuperAdmin', () => {
-    for (const path of ['/', '/members', '/members/1', '/games', '/games/730', '/analytics', '/command-center', '/settings']) {
+    for (const path of ['/', '/members', '/members/1', '/games', '/games/730', '/analytics', '/operations', '/command-center', '/settings']) {
       expect(canAccess(path, 'SuperAdmin')).toBe(true)
     }
   })
 
   it('keeps Analyst away from members, command-center and settings', () => {
     expect(canAccess('/analytics', 'Analyst')).toBe(true)
+    expect(canAccess('/operations', 'Analyst')).toBe(true)
     expect(canAccess('/games', 'Analyst')).toBe(true)
     expect(canAccess('/members', 'Analyst')).toBe(false)
     expect(canAccess('/command-center', 'Analyst')).toBe(false)
@@ -109,19 +110,20 @@ describe('canAccess', () => {
 
   it('keeps Moderator away from analytics, command-center and settings', () => {
     expect(canAccess('/members', 'Moderator')).toBe(true)
+    expect(canAccess('/operations', 'Moderator')).toBe(false)
     expect(canAccess('/analytics', 'Moderator')).toBe(false)
     expect(canAccess('/command-center', 'Moderator')).toBe(false)
     expect(canAccess('/settings', 'Moderator')).toBe(false)
   })
 
   it('gives Admin every section except none', () => {
-    for (const path of ['/members', '/analytics', '/command-center', '/settings', '/games']) {
+    for (const path of ['/members', '/analytics', '/operations', '/command-center', '/settings', '/games']) {
       expect(canAccess(path, 'Admin')).toBe(true)
     }
   })
 
   it('denies everything without a token or with an unknown role (no guests)', () => {
-    for (const path of ['/', '/members', '/games', '/analytics', '/command-center', '/settings']) {
+    for (const path of ['/', '/members', '/games', '/analytics', '/operations', '/command-center', '/settings']) {
       expect(canAccess(path, null)).toBe(false)
       expect(canAccess(path, undefined)).toBe(false)
       expect(canAccess(path, 'User')).toBe(false)

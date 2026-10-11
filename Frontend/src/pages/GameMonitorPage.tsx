@@ -150,6 +150,7 @@ export default function GameMonitorPage() {
     }
     return Array.from(byDay, ([day, count]) => ({
       day: formatDayMonth(new Date(new Date(day).getTime() + offset), locale),
+      iso: day,
       count,
     }))
   }, [alerts.history, locale])

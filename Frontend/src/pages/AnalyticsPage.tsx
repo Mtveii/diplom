@@ -3,14 +3,17 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import DonutChart, { type DonutChartItem } from '@/components/DonutChart'
+import { renderForecastOverlay } from '@/components/ForecastOverlay'
+import ForecastToggle, { ForecastNote } from '@/components/ForecastToggle'
+import ForecastDeltaLine from '@/components/ForecastDeltaLine'
 import Spinner from '@/components/Spinner'
 import { chartTheme } from '@/styles/chartTheme'
 import { useLocale } from '@/hooks/useLocale'
@@ -19,7 +22,9 @@ import { analyticsApi } from '@/services/api/analytics.api'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import { usersApi } from '@/services/api/users.api'
 import { toast } from '@/store/toastStore'
+import { useForecastStore } from '@/store/forecastStore'
 import { formatDay } from '@/utils/format'
+import { SHOW_ALL_MIN_R2, buildSeriesForecast, deltaForSeries, inferStepMs, withForecastRange } from '@/utils/forecast'
 import { groupUsersByCountry } from '@/utils/geo'
 import type { ChurnRiskDto, CohortRowDto, PeriodComparisonDto, RetentionPointDto } from '@/types/analytics'
 import type { DashboardSummaryDto } from '@/types/monitoring'
@@ -30,7 +35,7 @@ interface GameDistributionPoint {
   players: number
 }
 
-interface RegistrationPoint {
+type RegistrationPoint = {
   date: string
   count: number
 }
@@ -131,17 +136,17 @@ export default function AnalyticsPage() {
   /** География онлайн-пользователей (пустые страны бекенда пропускаем). */
   const countries = useMemo(() => groupUsersByCountry(onlineUsers), [onlineUsers])
 
-  /** Регистрации в системе по дням. */
+  /** Регистрации в системе по дням (ISO-день — ось форматирует тики сама). */
   const registrations = useMemo<RegistrationPoint[]>(() => {
     const byDate = new Map<string, number>()
     for (const user of systemUsers) {
-      const date = formatDay(user.createdAt, locale)
+      const date = user.createdAt.slice(0, 10)
       byDate.set(date, (byDate.get(date) ?? 0) + 1)
     }
     return [...byDate.entries()]
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [systemUsers, locale])
+  }, [systemUsers])
 
   const roleBreakdown = useMemo(() => {
     const byRole = new Map<string, number>()
@@ -172,6 +177,90 @@ export default function AnalyticsPage() {
   )
 
   const topCountries = useMemo(() => countries.slice(0, 10), [countries])
+
+  const globalForecast = useForecastStore((state) => state.enabled)
+  const [localRegForecast, setLocalRegForecast] = useState(true)
+  const [localRetForecast, setLocalRetForecast] = useState(true)
+  const showRegForecast = globalForecast && localRegForecast
+  const showRetForecast = globalForecast && localRetForecast
+
+  const regForecast = useMemo(() => {
+    if (!showRegForecast || registrations.length < 2) {
+      return null
+    }
+    return buildSeriesForecast({
+      values: registrations.map((point) => point.count),
+      times: registrations.map((point) => new Date(`${point.date}T00:00:00Z`).getTime()),
+      label: t.analytics.registrationsBar,
+      color: '#34d399',
+      min: 0,
+      minR2: SHOW_ALL_MIN_R2,
+    })
+  }, [showRegForecast, registrations, t])
+
+  const regRows = useMemo(
+    () => withForecastRange(registrations, 'date', 'countF', regForecast),
+    [registrations, regForecast],
+  )
+  const regFrom = regForecast && registrations.length > 0 ? registrations[registrations.length - 1].date : null
+
+  const regDelta = useMemo(() => {
+    if (!showRegForecast || registrations.length < 2) {
+      return null
+    }
+    return deltaForSeries(
+      registrations.map((point) => point.count),
+      registrations.map((point) => new Date(`${point.date}T00:00:00Z`).getTime()),
+      '#34d399',
+      { min: 0, minR2: SHOW_ALL_MIN_R2 },
+    )
+  }, [showRegForecast, registrations])
+
+  const retForecast = useMemo(() => {
+    if (!showRetForecast || retention.length < 2) {
+      return null
+    }
+    return buildSeriesForecast({
+      values: retention.map((point) => point.retentionRate),
+      times: retention.map((point) => point.day),
+      label: t.analytics.srvRetention,
+      color: '#a78bfa',
+      min: 0,
+      minR2: SHOW_ALL_MIN_R2,
+      max: 100,
+    })
+  }, [showRetForecast, retention, t])
+
+  /** Ось retention — номера дней (не даты): будущие точки продолжаем шагом сетки. */
+  const retRows = useMemo(() => {
+    if (!retForecast) {
+      return retention
+    }
+    const days = retention.map((point) => point.day)
+    const step = inferStepMs(days)
+    const lastDay = days[days.length - 1]
+    return [
+      ...retention,
+      ...retForecast.points.map((point, index) => ({
+        day: lastDay + step * (index + 1),
+        retentionRate: null as number | null,
+        retentionRateF: point.value,
+        retentionRateFRange: [point.lower, point.upper] as [number, number],
+      })),
+    ]
+  }, [retention, retForecast])
+
+  const retDelta = useMemo(() => {
+    if (!showRetForecast || retention.length < 2) {
+      return null
+    }
+    return deltaForSeries(
+      retention.map((point) => point.retentionRate),
+      retention.map((point) => point.day),
+      '#a78bfa',
+      { min: 0, max: 100, minR2: SHOW_ALL_MIN_R2 },
+    )
+  }, [showRetForecast, retention])
 
   const tooltipStyle = {
     background: chartTheme.tooltip.background,
@@ -356,6 +445,14 @@ export default function AnalyticsPage() {
           <div className="card-header-hud mb-4">
             <h3 className="card-header-hud__title">{t.analytics.registrations}</h3>
             <span className="card-header-hud__subtitle badge border border-surface-700 bg-surface-800/60 text-slate-300">{t.analytics.newAccounts}</span>
+            <span className="ml-auto">
+              <ForecastToggle
+                enabled={showRegForecast}
+                onToggle={() => setLocalRegForecast((prev) => !prev)}
+                disabled={registrations.length < 2}
+                disabledReason={t.forecast.needData}
+              />
+            </span>
           </div>
           {registrations.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
@@ -364,21 +461,36 @@ export default function AnalyticsPage() {
           ) : (
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={registrations} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={regRows} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="date" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value: string) => formatDay(value, locale)} />
                   <YAxis allowDecimals={false} tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
                   <Tooltip cursor={{ fill: '#172554', opacity: 0.4 }} contentStyle={tooltipStyle} />
                   <Bar dataKey="count" name={t.analytics.registrationsBar} fill="#34d399" radius={[6, 6, 0, 0]} barSize={24} />
-                </BarChart>
+                  {renderForecastOverlay(
+                    regForecast ? [{ key: 'countF', label: t.analytics.registrationsBar, color: '#34d399' }] : [],
+                    regFrom,
+                    t.forecast.suffix,
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
+          <ForecastNote visible={showRegForecast && registrations.length >= 2 && !regForecast} />
+          <ForecastDeltaLine items={regDelta ? [regDelta] : []} />
         </div>
 
         <div className="card card-hud p-5 xl:col-span-2">
           <div className="card-header-hud mb-4">
             <h3 className="card-header-hud__title">{t.analytics.srvRetention}</h3>
+            <span className="ml-auto">
+              <ForecastToggle
+                enabled={showRetForecast}
+                onToggle={() => setLocalRetForecast((prev) => !prev)}
+                disabled={retention.length < 2}
+                disabledReason={t.forecast.needData}
+              />
+            </span>
           </div>
           {retention.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-700 px-4 py-8 text-center text-sm text-slate-500">
@@ -387,16 +499,23 @@ export default function AnalyticsPage() {
           ) : (
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={retention} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={retRows} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
                   <Tooltip cursor={{ stroke: chartTheme.cursorStroke, strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="retentionRate" name={t.analytics.srvRetention} stroke="#a78bfa" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                </LineChart>
+                  <Line type="monotone" dataKey="retentionRate" name={t.analytics.srvRetention} stroke="#a78bfa" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
+                  {renderForecastOverlay(
+                    retForecast ? [{ key: 'retentionRateF', label: t.analytics.srvRetention, color: '#a78bfa' }] : [],
+                    null,
+                    t.forecast.suffix,
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
+          <ForecastNote visible={showRetForecast && retention.length >= 2 && !retForecast} />
+          <ForecastDeltaLine items={retDelta ? [retDelta] : []} />
         </div>
 
         <div className="card card-hud p-5">

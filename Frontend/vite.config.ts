@@ -32,6 +32,11 @@ export default defineConfig({
         target: 'https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net',
         changeOrigin: true,
       },
+      '/steam-api': {
+        target: 'https://api.steampowered.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/steam-api/, ''),
+      },
       '/hubs': {
         target: 'https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net',
         changeOrigin: true,

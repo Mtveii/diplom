@@ -9,7 +9,8 @@ import {
   YAxis,
 } from 'recharts'
 import Chart, { type ChartForecast } from '@/components/Chart'
-import ForecastToggle from '@/components/ForecastToggle'
+import ForecastToggle, { ForecastNote } from '@/components/ForecastToggle'
+import ForecastDeltaLine from '@/components/ForecastDeltaLine'
 import HeatmapChart from '@/components/HeatmapChart'
 import Spinner from '@/components/Spinner'
 import { chartTheme } from '@/styles/chartTheme'
@@ -17,7 +18,9 @@ import { useDashboard } from '@/hooks/useDashboard'
 import { useLocale } from '@/hooks/useLocale'
 import { useMonitoringCharts, type Period } from '@/hooks/useMonitoringCharts'
 import { useOnlineUsers } from '@/hooks/useOnlineUsers'
-import { buildSeriesForecast } from '@/utils/forecast'
+import { SHOW_ALL_MIN_R2, buildSeriesForecast, deltaForSeries, forecastDirection } from '@/utils/forecast'
+import { useForecastStore } from '@/store/forecastStore'
+import { useMetricHistory } from '@/hooks/useMetricHistory'
 import { formatRelativeDate } from '@/utils/format'
 import type { ChartPoint } from '@/components/Chart'
 
@@ -41,7 +44,61 @@ export default function DashboardPage() {
 
   const [timeFilter, setTimeFilter] = useState<TimeFilterKey>('week')
   const currentFilter = timeFilters.find((filter) => filter.key === timeFilter) ?? timeFilters[1]
-  const [forecastOn, setForecastOn] = useState(false)
+  const globalForecast = useForecastStore((state) => state.enabled)
+  const [localForecast, setLocalForecast] = useState(true)
+  const forecastOn = globalForecast && localForecast
+
+  /** Локальна історія скалярів (сесії, стабільність): бекенд її не віддає. */
+  const metricHistory = useMetricHistory(
+    summary?.playersToday ?? null,
+    summary?.networkStabilityPercent ?? null,
+  )
+
+  /** Дельти карток: сесії і стабільність з локальної історії. */
+  const cardDeltas = useMemo(() => {
+    if (!forecastOn) {
+      return { sessions: null, stability: null }
+    }
+    const sessions = metricHistory.map((point) => point.sessions)
+    const stability = metricHistory.map((point) => point.stability)
+    const times = metricHistory.map((point) => point.t)
+    const has = (values: Array<number | null>) => values.filter((v): v is number => v != null).length >= 2
+    return {
+      sessions: has(sessions)
+        ? deltaForSeries(
+            sessions.filter((v): v is number => v != null),
+            times.filter((_, i) => sessions[i] != null),
+            '#f59e0b',
+            { min: 0, minR2: SHOW_ALL_MIN_R2 },
+          )
+        : null,
+      stability: has(stability)
+        ? deltaForSeries(
+            stability.filter((v): v is number => v != null),
+            times.filter((_, i) => stability[i] != null),
+            '#34d399',
+            { min: 0, max: 100, minR2: SHOW_ALL_MIN_R2 },
+          )
+        : null,
+    }
+  }, [forecastOn, metricHistory])
+
+  /** Прогноз онлайну: стрілка + % до останнього факту (для віджета «Онлайн зараз»). */
+  const onlineDelta = useMemo(() => {
+    if (!forecastOn || activity.length < 2) {
+      return null
+    }
+    const values = activity.map((point) => point.value)
+    const result = buildSeriesForecast({
+      values,
+      times: activity.map((point) => new Date(point.timestamp).getTime()),
+      label: '',
+      color: '',
+      min: 0,
+      minR2: SHOW_ALL_MIN_R2,
+    })
+    return forecastDirection(values, result)
+  }, [forecastOn, activity])
 
   const forecasts = useMemo<ChartForecast[]>(() => {
     if (!forecastOn) {
@@ -54,6 +111,7 @@ export default function DashboardPage() {
         label,
         color,
         min: 0,
+      minR2: SHOW_ALL_MIN_R2,
       })
       if (!result || result.points.length === 0) {
         return null
@@ -71,6 +129,33 @@ export default function DashboardPage() {
       build(registrations, 'value2', t.dashboard.seriesNew, '#f59e0b'),
     ].filter((item): item is ChartForecast => item !== null)
   }, [forecastOn, activity, registrations, t])
+
+  /** Рядки «зараз → прогноз» під графіком (кольори серій збігаються з легендою). */
+  const forecastDeltas = useMemo(() => {
+    if (!forecastOn) {
+      return []
+    }
+    const items = []
+    const online = deltaForSeries(
+      activity.map((point) => point.value),
+      activity.map((point) => new Date(point.timestamp).getTime()),
+      '#60a5fa',
+      { min: 0, minR2: SHOW_ALL_MIN_R2 },
+    )
+    if (online) {
+      items.push(online)
+    }
+    const fresh = deltaForSeries(
+      registrations.map((point) => point.value),
+      registrations.map((point) => new Date(point.timestamp).getTime()),
+      '#f59e0b',
+      { min: 0, minR2: SHOW_ALL_MIN_R2 },
+    )
+    if (fresh) {
+      items.push(fresh)
+    }
+    return items
+  }, [forecastOn, activity, registrations])
 
   const [now, setNow] = useState(() => Date.now())
   const [refreshing, setRefreshing] = useState(false)
@@ -181,11 +266,29 @@ export default function DashboardPage() {
               <span className="text-[11px] text-slate-400 font-medium">{t.dashboard.onlineUsers}</span>
               <span className="text-sm font-bold text-white">{onlineUsers.length}</span>
               <span className="text-[10px] text-slate-500">{t.dashboard.onlineNow}</span>
+              {onlineDelta && (
+                <span
+                  className={`text-[10px] font-semibold ${
+                    onlineDelta.direction === 'up'
+                      ? 'text-success-400'
+                      : onlineDelta.direction === 'down'
+                        ? 'text-danger-400'
+                        : 'text-slate-500'
+                  }`}
+                >
+                  {onlineDelta.direction === 'up' ? '▲' : onlineDelta.direction === 'down' ? '▼' : '•'}{' '}
+                  {onlineDelta.percent > 0 ? '+' : ''}
+                  {onlineDelta.percent}% ·{' '}
+                  {currentFilter.apiPeriod === 'day' ? t.forecast.suffix : t.forecast.tomorrow} ≈{' '}
+                  {Math.round(onlineDelta.target)}
+                </span>
+              )}
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
               <span className="text-[11px] text-slate-400 font-medium">{t.dashboard.activeSessions}</span>
               <span className="text-sm font-bold text-white">{summary?.playersToday ?? '—'}</span>
               <span className="text-[10px] text-slate-500">{t.dashboard.slushNetwork}</span>
+              {cardDeltas.sessions && <ForecastDeltaLine items={[cardDeltas.sessions]} />}
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
               <span className="text-[11px] text-slate-400 font-medium">{t.dashboard.stabilityTitle}</span>
@@ -193,6 +296,7 @@ export default function DashboardPage() {
                 {summary?.networkStabilityPercent != null ? `${summary.networkStabilityPercent}%` : '—'}
               </span>
               <span className="text-[10px] text-slate-500">{t.dashboard.uptimeApi}</span>
+              {cardDeltas.stability && <ForecastDeltaLine items={[cardDeltas.stability]} />}
             </div>
             <div className="rounded-xl border border-surface-700/60 bg-surface-900/60 p-3 flex flex-col gap-1">
               <span className="text-[11px] text-slate-400 font-medium">{t.dashboard.topGame}</span>
@@ -227,7 +331,7 @@ export default function DashboardPage() {
               </button>
             ))}
             {activity.length >= 2 && (
-              <ForecastToggle enabled={forecastOn} onToggle={() => setForecastOn((prev) => !prev)} />
+              <ForecastToggle enabled={forecastOn} onToggle={() => setLocalForecast((prev) => !prev)} />
             )}
           </div>
         </div>
@@ -240,6 +344,8 @@ export default function DashboardPage() {
             forecasts={forecasts}
           />
         </div>
+        <ForecastNote visible={forecastOn && activity.length >= 2 && forecasts.length === 0} />
+        <ForecastDeltaLine items={forecastDeltas} />
       </div>
 
       {/* Heatmap 100% width */}

@@ -40,5 +40,5 @@ export interface AdminActionLogDto {
   timestamp: string
 }
 
-/** Формат серверного звіту: ReportFormat { Pdf = 0, Excel = 1 } (історія проєкту). */
+/** Формат серверного звіту (UI-индексы; на бэкенд уходят имена Pdf/Excel). */
 export type ReportFormat = 0 | 1

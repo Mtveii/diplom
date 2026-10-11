@@ -4,49 +4,24 @@ import type { AlertHistoryDto, AlertRuleDto } from '@/types/alert'
 import type { NotificationChannel } from '@/types/notification'
 
 /**
- * Маппинги строковых имён UI на int-enum Slush API.
- * Порядок подтверждён историей проекта (backend/src/Domain/Enums):
- * AlertRuleType { NoLoginFor = 0, ReviewDrop = 1, DiscountStarted = 2 },
- * AlertCondition { LessThan = 0, GreaterThan = 1, Equals = 2 },
- * NotificationChannel { Discord = 0, Telegram = 1, Email = 2, InApp = 3 }.
- * NewsRelease в Slush API отсутствует (только 0–2) и из UI убран.
+ * Enum'ы Slush API — СТРОКИ (JsonStringEnumConverter, backend SlushBackend):
+ * RuleType { ClanOnlineDrop, PlayerOffline, DiscountAppeared },
+ * ConditionType { LessThan, GreaterThan, Equals },
+ * NotificationChannel { Telegram, Discord, Email, Web }.
+ * Числа принимаем терпимо (порядок backend) — на случай старых данных.
  */
-const RULE_TYPE_TO_INT: Record<string, number> = {
-  NoLoginFor: 0,
-  ReviewDrop: 1,
-  DiscountStarted: 2,
-}
+export const ALERT_RULE_TYPES = ['ClanOnlineDrop', 'PlayerOffline', 'DiscountAppeared'] as const
+export const ALERT_CONDITIONS = ['LessThan', 'GreaterThan', 'Equals'] as const
+export const ALERT_CHANNELS = ['Telegram', 'Discord', 'Email', 'Web'] as const
 
-const INT_TO_RULE_TYPE: Record<number, string> = {
-  0: 'NoLoginFor',
-  1: 'ReviewDrop',
-  2: 'DiscountStarted',
-}
-
-const CONDITION_TO_INT: Record<string, number> = {
-  LessThan: 0,
-  GreaterThan: 1,
-  Equals: 2,
-}
-
-const INT_TO_CONDITION: Record<number, string> = {
-  0: 'LessThan',
-  1: 'GreaterThan',
-  2: 'Equals',
-}
-
-const CHANNEL_TO_INT: Record<NotificationChannel, number> = {
-  Discord: 0,
-  Telegram: 1,
-  Email: 2,
-  InApp: 3,
-}
-
-const INT_TO_CHANNEL: Record<number, NotificationChannel> = {
-  0: 'Discord',
-  1: 'Telegram',
-  2: 'Email',
-  3: 'InApp',
+function asEnumName(value: string | number | null, order: readonly string[]): string {
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return order[value] ?? String(value)
+  }
+  return ''
 }
 
 /** Сырые формы Slush API. */
@@ -68,10 +43,10 @@ interface SlushPagedResultDto<T> {
 interface SlushAlertRuleDto {
   id: string
   ruleName: string | null
-  ruleType: number
-  condition: number
+  ruleType: string | number | null
+  condition: string | number | null
   threshold: number
-  channel: number
+  channel: string | number | null
   isEnabled: boolean
 }
 
@@ -86,15 +61,16 @@ function mapHistoryItem(item: SlushAlertHistoryDto): AlertHistoryDto {
   }
 }
 
-function mapRule(rule: SlushAlertRuleDto): AlertRuleDto {
+export function mapRule(rule: SlushAlertRuleDto): AlertRuleDto {
+  const channel = asEnumName(rule.channel, ALERT_CHANNELS)
   return {
     id: rule.id,
     name: rule.ruleName ?? getLocaleDictionary().common.untitled,
-    type: INT_TO_RULE_TYPE[rule.ruleType] ?? String(rule.ruleType),
+    type: asEnumName(rule.ruleType, ALERT_RULE_TYPES),
     targetId: null,
-    condition: INT_TO_CONDITION[rule.condition] ?? String(rule.condition),
+    condition: asEnumName(rule.condition, ALERT_CONDITIONS),
     thresholdValue: rule.threshold,
-    channel: INT_TO_CHANNEL[rule.channel] ?? null,
+    channel: (channel === '' ? null : channel) as NotificationChannel | null,
     isActive: rule.isEnabled,
     createdAt: null,
   }
@@ -116,10 +92,10 @@ export const alertsApi = {
     httpClient
       .post<SlushAlertRuleDto>('/Alerts/rules', {
         ruleName: request.name,
-        ruleType: RULE_TYPE_TO_INT[request.type] ?? 0,
-        condition: CONDITION_TO_INT[request.condition] ?? 0,
+        ruleType: request.type,
+        condition: request.condition,
         threshold: request.thresholdValue,
-        channel: CHANNEL_TO_INT[request.channel] ?? 0,
+        channel: request.channel,
         isEnabled: request.isActive,
       })
       .then((r) => r.data)

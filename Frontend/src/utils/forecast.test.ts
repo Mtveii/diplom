@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSeriesForecast, forecastHorizon, inferStepMs } from './forecast'
+import { buildSeriesForecast, deltaForSeries, forecastDirection, forecastHorizon, inferStepMs, withForecastRange } from './forecast'
 
 const DAY = 24 * 3600_000
 
@@ -123,5 +123,87 @@ describe('buildSeriesForecast', () => {
       expect(point.value).toBeLessThanOrEqual(100)
       expect(point.upper).toBeLessThanOrEqual(100)
     }
+  })
+})
+
+describe('forecastDirection', () => {
+  const fc = (lastValue: number) => ({
+    label: 't',
+    color: 'c',
+    fromTime: 0,
+    r2: 0.9,
+    points: [{ timestamp: 'x', value: lastValue, lower: lastValue - 1, upper: lastValue + 1 }],
+  })
+
+  it('detects up and down with percents', () => {
+    expect(forecastDirection([100, 100], fc(112))).toEqual({ direction: 'up', percent: 12, target: 112 })
+    expect(forecastDirection([200, 200], fc(150))).toEqual({ direction: 'down', percent: -25, target: 150 })
+  })
+
+  it('reports flat on tiny changes', () => {
+    expect(forecastDirection([1000, 1000], fc(1002))?.direction).toBe('flat')
+  })
+
+  it('returns null without forecast, data or on zero base', () => {
+    expect(forecastDirection([1, 2], null)).toBeNull()
+    expect(forecastDirection([], fc(5))).toBeNull()
+    expect(forecastDirection([0, 0], fc(5))).toBeNull()
+  })
+
+  it('shows flat zero percent when nothing changes from zero', () => {
+    expect(forecastDirection([0, 0, 0], fc(0))).toEqual({ direction: 'flat', percent: 0, target: 0 })
+  })
+})
+
+describe('withForecastRange', () => {
+  it('appends future points without touching history', () => {
+    const rows = [
+      { day: 'd1', count: 3 },
+      { day: 'd2', count: 5 },
+    ]
+    const out = withForecastRange(rows, 'day', 'countF', {
+      label: 't',
+      color: 'c',
+      fromTime: 0,
+      r2: 0.9,
+      points: [{ timestamp: 'd3', value: 7, lower: 6, upper: 8 }],
+    })
+    expect(out).toHaveLength(3)
+    expect(out[0]).toEqual({ day: 'd1', count: 3 })
+    expect(out[2]).toEqual({ day: 'd3', countF: 7, countFRange: [6, 8] })
+  })
+
+  it('returns rows as-is without forecast', () => {
+    const rows = [{ day: 'd1', count: 3 }]
+    expect(withForecastRange(rows, 'day', 'countF', null)).toEqual(rows)
+  })
+
+  it('formats future timestamps for the axis', () => {
+    const out = withForecastRange([{ day: '19.09', count: 3 }], 'day', 'countF', {
+      label: 't',
+      color: 'c',
+      fromTime: 0,
+      r2: 0.9,
+      points: [{ timestamp: '2026-09-20T00:00:00.000Z', value: 4, lower: 3, upper: 5 }],
+    }, (iso) => iso.slice(0, 10))
+    expect(out[1]).toEqual({ day: '2026-09-20', countF: 4, countFRange: [3, 5] })
+  })
+})
+
+describe('deltaForSeries', () => {
+  it('returns a ready line item', () => {
+    const values = [100, 102, 104, 106, 108, 110]
+    const times = values.map((_, i) => i * 86400000)
+    const item = deltaForSeries(values, times, '#60a5fa', { min: 0 })
+    expect(item).not.toBeNull()
+    expect(item!.color).toBe('#60a5fa')
+    expect(item!.current).toBe(110)
+    expect(item!.direction).toBe('up')
+    expect(item!.percent).toBeGreaterThan(0)
+  })
+
+  it('returns null without data', () => {
+    expect(deltaForSeries([], [], '#fff', {})).toBeNull()
+    expect(deltaForSeries([5], [1], '#fff', {})).toBeNull()
   })
 })

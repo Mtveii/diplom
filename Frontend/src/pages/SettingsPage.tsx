@@ -21,7 +21,7 @@ const channelLabels: Record<NotificationChannel, string> = {
   Discord: 'Discord webhook',
   Telegram: 'Telegram bot',
   Email: 'Email (SMTP)',
-  InApp: 'In-app (SignalR)',
+  Web: 'Web push',
 }
 
 export default function SettingsPage() {
@@ -248,7 +248,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {channel.channel !== 'InApp' && (
+                          {channel.channel !== 'Web' && (
                             <button onClick={() => handleOpenConfig(channel)} className="btn-ghost px-3 py-1.5 text-xs">
                               {t.settings.configure}
                             </button>
@@ -412,6 +412,7 @@ export default function SettingsPage() {
             </div>
             </div>
           )}
+
 
         </div>
       </div>

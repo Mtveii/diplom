@@ -9,6 +9,10 @@
       "destination": "https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net/hubs/:path*"
     },
     {
+      "source": "/steam-api/:path*",
+      "destination": "https://api.steampowered.com/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
