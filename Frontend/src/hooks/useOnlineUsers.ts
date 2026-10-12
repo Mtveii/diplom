@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { monitoringApi } from '@/services/api/monitoring.api'
 import type { OnlineUserDto } from '@/types/monitoring'
 
-const POLL_INTERVAL_MS = 30_000
+const POLL_INTERVAL_MS = 5_000
 
 /**
  * Список пользователей сети Slush с гео-координатами.
- * Опрашивает GET /Monitoring/online раз в 30 секунд; при ошибке сохраняет последний список.
+ * Опрашивает GET /Monitoring/online каждые 5 секунд (бекенд почти не пушит
+ * SignalR-события — проверено живьём, поэтому короткий интервал — основной
+ * путь обновлений) + мгновенный рефетч при возврате на вкладку.
+ * При ошибке сохраняет последний список.
  */
 export function useOnlineUsers() {
   const [users, setUsers] = useState<OnlineUserDto[]>([])
@@ -28,7 +31,16 @@ export function useOnlineUsers() {
     const timer = window.setInterval(() => {
       void reload()
     }, POLL_INTERVAL_MS)
-    return () => window.clearInterval(timer)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void reload()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [reload])
 
   return { users, loading, reload }
