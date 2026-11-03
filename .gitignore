@@ -46,3 +46,5 @@ Thumbs.db
 
 .opencode
 .github
+# Bot backends (contain secrets)
+backend/
