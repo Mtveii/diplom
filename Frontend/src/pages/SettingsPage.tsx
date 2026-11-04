@@ -171,7 +171,32 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white">{t.settings.title}</h1>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            {t.settings.title}
+            <span className="relative group cursor-help">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 bg-surface-800 text-[11px] font-bold text-slate-400 hover:border-primary-400 hover:text-primary-400 transition-colors">i</span>
+              <div className="absolute left-0 top-7 z-50 hidden w-80 rounded-2xl border border-surface-700/60 bg-surface-900/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-md group-hover:block">
+                <h4 className="text-sm font-bold text-white mb-2">Что делают боты?</h4>
+                <div className="flex flex-col gap-3 text-[12px] text-slate-300 leading-relaxed">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 text-lg">✈️</span>
+                    <div>
+                      <span className="font-semibold text-white">Telegram Bot</span> — отправляет уведомления и алерты в Telegram-чат. Поддерживает команды /start, /status, /help. Привязывается к аккаунту пользователя на сайте.
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 text-lg">🎮</span>
+                    <div>
+                      <span className="font-semibold text-white">Discord Bot</span> — отправляет embed-алерты в Discord-канал. Поддерживает slash-команды /link, /status, /help. Привязывается к аккаунту пользователя.
+                    </div>
+                  </div>
+                  <div className="mt-2 rounded-lg border border-surface-800 bg-surface-950/50 px-3 py-2 text-[11px] text-slate-400">
+                    Оба бота мониторят здоровье шлюза, задержку API, ошибки доставки и очередь сообщений. При срабатывании правил алертов — отправляют уведомление в соответствующий канал.
+                  </div>
+                </div>
+              </div>
+            </span>
+          </h1>
           <p className="mt-0.5 text-sm text-slate-400">{t.settings.subtitle}</p>
         </div>
       </div>
@@ -438,9 +463,6 @@ export default function SettingsPage() {
                             <span className="text-sm font-bold text-white tracking-wide">{channelLabels[channel.channel] ?? channel.channel}</span>
                             <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${channel.isEnabled ? 'border-success-500/40 bg-success-500/10 text-success-400' : 'border-slate-700 text-slate-500'}`}>
                               {channel.isEnabled ? t.settings.enabledOn : t.settings.enabledOff}
-                            </span>
-                            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${summary ? 'border-success-500/30 bg-success-500/8 text-success-400' : 'border-warning-500/30 bg-warning-500/8 text-warning-400'}`}>
-                              {summary ? '✓ Секреты сохранены' : '⚠ Требует настройки'}
                             </span>
                           </div>
                           <div className="mt-2 truncate text-xs text-slate-500 tracking-wide">{summary || t.settings.notConfigured}</div>
