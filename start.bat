@@ -7,7 +7,7 @@ start "TG Bot" cmd /c "cd /d %~dp0backend\tg-bot && dotnet run --urls http://loc
 echo Starting Discord Bot on port 5002...
 start "DS Bot" cmd /c "cd /d %~dp0backend\ds-bot && dotnet run --urls http://localhost:5002"
 
-timeout /t 5 /nobreak >nul
+timeout /t 8 /nobreak >nul
 
 echo Starting Frontend on port 5173...
 cd /d "%~dp0Frontend"
