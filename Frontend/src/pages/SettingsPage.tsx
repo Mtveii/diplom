@@ -63,7 +63,7 @@ const latencySeries: ChartPoint[] = [
 ]
 
 export default function SettingsPage() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const rolePermissions: Array<{ role: UserRole; name: string; description: string; permissions: string[] }> = [
     { role: 'Admin', name: t.settings.roleAdmin, description: t.settings.roleAdminDesc, permissions: t.settings.roleAdminPerms },
     { role: 'Analyst', name: t.settings.roleAnalyst, description: t.settings.roleAnalystDesc, permissions: t.settings.roleAnalystPerms },
@@ -599,12 +599,12 @@ export default function SettingsPage() {
           {editingChannel?.channel === 'Telegram' && (
             <>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-400">{t.settings.botToken}</label>
+                <label className="mb-1 block text-xs font-medium text-slate-400">Telegram Bot Token</label>
                 <input type="password" value={channelForm.botToken} onChange={(e) => setChannelForm({ ...channelForm, botToken: e.target.value })}
                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" className="input w-full bg-surface-950 px-3 py-2 text-sm rounded-xl border border-surface-700 focus:border-primary-400 focus:ring-2 focus:ring-primary-400/10 transition-all" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-400">{t.settings.chatId}</label>
+                <label className="mb-1 block text-xs font-medium text-slate-400">Telegram Chat ID</label>
                 <input type="text" value={channelForm.chatId} onChange={(e) => setChannelForm({ ...channelForm, chatId: e.target.value })}
                   placeholder="-100123456789" className="input w-full bg-surface-950 px-3 py-2 text-sm rounded-xl border border-surface-700 focus:border-primary-400 focus:ring-2 focus:ring-primary-400/10 transition-all" />
               </div>

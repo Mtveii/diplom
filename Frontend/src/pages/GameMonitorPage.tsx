@@ -164,7 +164,7 @@ export default function GameMonitorPage() {
   )
 
   const maxPrice = useMemo(
-    () => Math.max(0, ...games.map((g) => g.price)),
+    () => Math.max(0, ...games.map((g: { price: number }) => g.price)),
     [games],
   )
 

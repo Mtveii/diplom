@@ -62,6 +62,16 @@ export const notificationsApi = {
     httpClient
       .put(`/Notifications/channels/${channel}`, { isEnabled, configurationData: configJson })
       .then((r) => r.data),
+
+  /** Отправка тестового сообщения через канал (проверка конфига). */
+  testChannel: async (channel: NotificationChannel): Promise<{ ok: boolean; message: string }> => {
+    try {
+      const r = await httpClient.post(`/Notifications/channels/${channel}/test`)
+      return { ok: true, message: (r.data as { message?: string })?.message ?? 'OK' }
+    } catch (err) {
+      return { ok: false, message: 'Connection test failed' }
+    }
+  },
 }
 
 /** Сырая форма личного уведомления Slush: точные поля недокументированы, всё опционально. */
