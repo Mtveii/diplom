@@ -10,7 +10,7 @@ import Spinner from '@/components/Spinner'
 import StatCard from '@/components/StatCard'
 import { catalogApi } from '@/services/api/catalog.api'
 import { useAlerts } from '@/hooks/useAlerts'
-import { useCatalog } from '@/hooks/useCatalog'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
 import { canManageAlerts } from '@/utils/role'
@@ -18,10 +18,8 @@ import { formatDayMonth, formatNumber } from '@/utils/format'
 import type { GameDetailsDto, UnifiedGameDto } from '@/types/catalog'
 
 const LIST_ROW_HEIGHT = 68
-/* Каталог полностью статичен: фиксированные ширина карточки и число колонок.
-   Никакой адаптивности под экран — размер не меняется никогда. */
+/* Каталог: адаптивное число колонок под экран */
 const CARD_WIDTH = 312
-const COLUMNS_PER_ROW = 5
 const CARD_BODY_HEIGHT = 212
 const GRID_ROW_ESTIMATE = Math.round(CARD_WIDTH * (9 / 16)) + CARD_BODY_HEIGHT
 const LOAD_MORE_THRESHOLD = 600
@@ -248,6 +246,12 @@ export default function GameMonitorPage() {
     }
   }, [loading, loadingMore, filtersActive, hasMore, loadMore, sorted.length, view])
 
+  const isMobile = useMediaQuery('(max-width: 639px)')
+  const isSm = useMediaQuery('(max-width: 767px)')
+  const isMd = useMediaQuery('(max-width: 1023px)')
+  const isLg = useMediaQuery('(max-width: 1279px)')
+  const responsiveColumns = isMobile ? 1 : isSm ? 2 : isMd ? 3 : isLg ? 4 : 5
+  const COLUMNS_PER_ROW = responsiveColumns
   const colCount = view === 'list' ? Math.min(3, COLUMNS_PER_ROW) : COLUMNS_PER_ROW
   const rowCount = Math.ceil(sorted.length / colCount)
   const virtualizer = useVirtualizer({
@@ -301,7 +305,7 @@ export default function GameMonitorPage() {
   const renderGridRow = (start: number, count: number) => {
     const rowItems = sorted.slice(start, start + count)
     return (
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, ${CARD_WIDTH}px))` }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
         {rowItems.map((item) => (
           <GameCatalogCard key={item.id} game={item} onOpen={handleOpen} compact={view === 'compact'} />
         ))}
