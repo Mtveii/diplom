@@ -128,7 +128,14 @@ const FLAT_AMBIENT_INTENSITY = 1.1
 function isWebGLAvailable(): boolean {
   try {
     const canvas = document.createElement('canvas')
-    return (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) !== null
+    const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext | null
+    // Освобождаем пробный контекст сразу: Chrome считает каждый getContext активным
+    // контекстом и упирается в лимит (8–16), даже если канвас нигде не используется.
+    if (gl) {
+      const lose = gl.getExtension('WEBGL_lose_context') as { loseContext?: () => void } | null
+      lose?.loseContext?.()
+    }
+    return gl !== null
   } catch {
     return false
   }
@@ -141,6 +148,7 @@ export function UsersGlobe() {
   // Вблизи — обычные спутниковые снимки (без дня/ночи), издалека — день/ночь по солнцу.
   const [tilesOn, setTilesOn] = useState(false)
   const [dayTextureUrl, setDayTextureUrl] = useState(DAY_TEXTURE_URL)
+  const [contextLost, setContextLost] = useState(false)
 
   // Источники света создаём один раз и переиспользуем — иначе при каждом
   // переключении режима в сцене копились бы дубликаты.
@@ -207,6 +215,17 @@ export function UsersGlobe() {
 
   const handleGlobeReady = useCallback(() => {
     applyLights(false)
+    const canvas = (globeRef.current as { renderer?: () => { domElement?: HTMLCanvasElement } } | undefined)?.renderer?.()
+      ?.domElement
+    if (canvas) {
+      canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault()
+        setContextLost(true)
+      })
+      canvas.addEventListener('webglcontextrestored', () => {
+        setContextLost(false)
+      })
+    }
   }, [applyLights])
 
   const handleZoom = useCallback(() => {
@@ -393,6 +412,13 @@ export function UsersGlobe() {
   // Без WebGL three.js кидає при монтуванні — показуємо заглушку одразу,
   // не чекаючи ErrorBoundary (див. CommandCenterPage).
   if (!isWebGLAvailable()) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-slate-500">
+        {t.commandCenter.globeFallback}
+      </div>
+    )
+  }
+  if (contextLost) {
     return (
       <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-slate-500">
         {t.commandCenter.globeFallback}

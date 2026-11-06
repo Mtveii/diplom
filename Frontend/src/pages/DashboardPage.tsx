@@ -407,11 +407,11 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              {[...onlineUsers]
-                .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
-                .map((member) => (
-                  <div
-                    key={member.steamId}
+                {[...onlineUsers]
+                  .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
+                  .map((member, index) => (
+                    <div
+                      key={member.steamId || `member-${index}`}
                     className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-800/60"
                   >
                     <span
