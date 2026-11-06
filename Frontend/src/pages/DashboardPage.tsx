@@ -406,7 +406,7 @@ export default function DashboardPage() {
               {t.dashboard.nobodyOnline}
             </div>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto pr-1">
               {[...onlineUsers]
                 .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
                 .map((member) => (
