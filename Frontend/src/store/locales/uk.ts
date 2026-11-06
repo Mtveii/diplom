@@ -33,7 +33,7 @@ function pluralPlayers(count: number): string {
 
 export const uk = {
   common: {
-    appName: 'Steam Users Admin',
+    appName: 'Slush Users Admin',
     loading: 'Завантаження...',
     retry: 'Повторити',
     cancel: 'Скасувати',

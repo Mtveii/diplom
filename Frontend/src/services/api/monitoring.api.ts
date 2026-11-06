@@ -57,8 +57,24 @@ export const monitoringApi = {
   },
 
   /** Живые пользователи сети с гео-координатами (для глобуса и блока «кто онлайн»). */
-  onlineUsers: () =>
-    httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data),
+  onlineUsers: async (): Promise<OnlineUserDto[]> => {
+    const fetchUsers = () => httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data)
+    let data = await fetchUsers()
+    if (!Array.isArray(data) || data.length === 0) {
+      // Бэкенд может быть пустым (нет реальных онлайн-пользователей) —
+      // подтягиваем демо-данные один раз за сессию, чтобы глобус/онлайн не были пустыми.
+      try {
+        if (!window.localStorage.getItem('slush-seeded-globe')) {
+          await httpClient.post('/Monitoring/seed-mock-globe')
+          window.localStorage.setItem('slush-seeded-globe', '1')
+          data = await fetchUsers()
+        }
+      } catch (err) {
+        console.warn('[monitoringApi] Не удалось засеять демо-пользователей', err)
+      }
+    }
+    return Array.isArray(data) ? data : []
+  },
 
   activity: (period: MonitoringPeriod) =>
     httpClient
@@ -81,8 +97,60 @@ export const monitoringApi = {
     return []
   },
 
-  gameMonitor: async (_appId: number): Promise<GameMonitorDto | null> => {
-    console.info('[monitoringApi] gameMonitor: эндпоинт отсутствует в Slush API — возвращаю null')
-    return null
+  gameMonitor: async (appId: number): Promise<GameMonitorDto | null> => {
+    // Бэкенд (Slush) эндпоинта нет — тянем напрямую из публичного Steam Store API.
+    try {
+      const [detailsRes, spyRes] = await Promise.allSettled([
+        fetch(`/steam-store/api/appdetails?appids=${appId}&l=english`),
+        fetch(`/steamspy/api.php?request=appdetails&appid=${appId}`),
+      ])
+
+      let name = ''
+      let currentPrice: number | null = null
+      let currentDiscountPercent: number | null = null
+      if (detailsRes.status === 'fulfilled' && detailsRes.value.ok) {
+        const json = (await detailsRes.value.json()) as Record<string, { success?: boolean; data?: { name?: string; price_overview?: { final?: number; discount_percent?: number } } }>
+        const entry = json?.[String(appId)]
+        if (entry?.success && entry.data) {
+          name = entry.data.name ?? ''
+          if (entry.data.price_overview) {
+            currentPrice = (entry.data.price_overview.final ?? 0) / 100
+            currentDiscountPercent = entry.data.price_overview.discount_percent ?? 0
+          }
+        }
+      }
+
+      let positiveReviewPercent: number | null = null
+      let totalReviews: number | null = null
+      if (spyRes.status === 'fulfilled' && spyRes.value.ok) {
+        const json = (await spyRes.value.json()) as { positive?: number; negative?: number }
+        const pos = typeof json?.positive === 'number' ? json.positive : 0
+        const neg = typeof json?.negative === 'number' ? json.negative : 0
+        const total = pos + neg
+        if (total > 0) {
+          totalReviews = total
+          positiveReviewPercent = (pos / total) * 100
+        }
+      }
+
+      if (!name && currentPrice == null && positiveReviewPercent == null) {
+        return null
+      }
+
+      return {
+        appId,
+        name: name || `App ${appId}`,
+        currentPrice,
+        currentDiscountPercent,
+        positiveReviewPercent,
+        totalReviews,
+        trend: [],
+        achievements: [],
+        clanOwners: 0,
+      }
+    } catch (err) {
+      console.warn('[monitoringApi] gameMonitor fallback failed', err)
+      return null
+    }
   },
 }

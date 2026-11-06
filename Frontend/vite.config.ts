@@ -37,6 +37,21 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/steam-api/, ''),
       },
+      '/steam-store': {
+        target: 'https://store.steampowered.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/steam-store/, ''),
+      },
+      '/steamspy': {
+        target: 'https://steamspy.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/steamspy/, ''),
+      },
+      '/freetogame': {
+        target: 'https://www.freetogame.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/freetogame/, ''),
+      },
       '/hubs': {
         target: 'https://slush-api-backend-gwfqgjb2djf2bhd3.westeurope-01.azurewebsites.net',
         changeOrigin: true,

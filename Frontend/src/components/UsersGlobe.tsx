@@ -15,7 +15,6 @@ import {
   packetSendProbability,
   PACKET_FLIGHT_MS,
   randomWaveDelayMs,
-  resolveGlobeMode,
   type ChatArc,
   type GeoPoint,
 } from '@/utils/geo'
@@ -30,12 +29,12 @@ interface Point {
 }
 
 /** Одновременно в полёте — не больше дюжины линий ради перфа. */
-const MAX_PACKET_FLIGHTS = 12
+const MAX_PACKET_FLIGHTS = 6
 
 /** Точек на хвост: three-globe всё равно доинтерполирует (pathResolution), 16 хватает. */
-const TRAIL_POINTS = 16
+const TRAIL_POINTS = 8
 /** Обновляем хвосты каждый второй кадр (~30fps вместо 60): полёт 1.5 сек всё равно гладкий. */
-const TICK_FRAME_SKIP = 2
+const TICK_FRAME_SKIP = 3
 /**
  * Толщина линии перелёта в пикселях: three-globe кладёт значение напрямую
  * в linewidth FatLine-материала. Работает только вместе с rendererSize
@@ -111,14 +110,7 @@ function trailPoints(arc: ChatArc, easedT: number): PathPoint[] {
 }
 
 // Дневная Blue Marble 2048px. Если CDN недоступен — проверенный earth-day из примеров three-globe.
-const DAY_TEXTURE_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/earth_atmos_2048.jpg'
-const DAY_FALLBACK_URL = 'https://unpkg.com/three-globe@2.38.0/example/img/earth-day.jpg'
-const BUMP_TEXTURE_URL = 'https://unpkg.com/three-globe@2.38.0/example/img/earth-topology.png'
-
-// Спутниковые снимки Esri World Imagery — подтягиваются тайлами по мере приближения.
-const esriTileUrl = (x: number, y: number, level: number): string =>
-  `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${level}/${y}/${x}`
-
+const DAY_TEXTURE_URL = 'https://unpkg.com/three-globe@2.38.0/example/img/earth-day.jpg'
 // Освещение: яркое солнце = чёткий терминатор день/ночь, тусклый ambient —
 // ночная сторона тёмная, но не проваливается в черноту.
 const SUN_INTENSITY = 2.4
@@ -146,8 +138,12 @@ export function UsersGlobe() {
   const users = useGlobeUsers()
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
   // Вблизи — обычные спутниковые снимки (без дня/ночи), издалека — день/ночь по солнцу.
+<<<<<<< HEAD
   const [tilesOn, setTilesOn] = useState(false)
   const [dayTextureUrl, setDayTextureUrl] = useState(DAY_TEXTURE_URL)
+=======
+  const dayTextureUrl = DAY_TEXTURE_URL
+>>>>>>> 3141efc6689e4e3cb916d5aac243b456869a0de1
   const [contextLost, setContextLost] = useState(false)
 
   // Источники света создаём один раз и переиспользуем — иначе при каждом
@@ -160,25 +156,7 @@ export function UsersGlobe() {
     [],
   )
 
-  // Предзагрузка дневной текстуры: при ошибке CDN переключаемся на запасной URL
-  // до того, как three-globe начнёт её тянуть (иначе планета останется чёрной).
-  useEffect(() => {
-    let cancelled = false
-    const probeTexture = new THREE.TextureLoader().load(
-      DAY_TEXTURE_URL,
-      undefined,
-      undefined,
-      () => {
-        if (!cancelled) {
-          setDayTextureUrl(DAY_FALLBACK_URL)
-        }
-      },
-    )
-    return () => {
-      cancelled = true
-      probeTexture.dispose()
-    }
-  }, [])
+  // Текстура уже лёгкая (fallback 1024-ish) — предзагрузка не нужна.
 
   const applyLights = useCallback(
     (tilesMode: boolean) => {
@@ -205,15 +183,6 @@ export function UsersGlobe() {
 
   // Солнце движется + смена режима по зуму — применяем актуальный свет.
   useEffect(() => {
-    applyLights(tilesOn)
-  }, [tilesOn, applyLights])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => applyLights(tilesOn), 60_000)
-    return () => window.clearInterval(timer)
-  }, [tilesOn, applyLights])
-
-  const handleGlobeReady = useCallback(() => {
     applyLights(false)
     const canvas = (globeRef.current as { renderer?: () => { domElement?: HTMLCanvasElement } } | undefined)?.renderer?.()
       ?.domElement
@@ -228,12 +197,28 @@ export function UsersGlobe() {
     }
   }, [applyLights])
 
-  const handleZoom = useCallback(() => {
-    const altitude = globeRef.current?.pointOfView()?.altitude
-    if (typeof altitude !== 'number') {
-      return
+  useEffect(() => {
+    const timer = window.setInterval(() => applyLights(false), 60_000)
+    return () => window.clearInterval(timer)
+  }, [applyLights])
+
+  const handleGlobeReady = useCallback(() => {
+    applyLights(false)
+    const canvas = containerRef.current?.querySelector('canvas')
+    if (canvas) {
+      canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault()
+        setContextLost(true)
+      })
+      canvas.addEventListener('webglcontextrestored', () => {
+        setContextLost(false)
+      })
     }
-    setTilesOn((prev) => resolveGlobeMode(altitude, prev))
+  }, [applyLights])
+
+  const handleZoom = useCallback(() => {
+    // Тайлы Esri отключены ради стабильности на слабых GPU — зум не меняет источник текстуры.
+    void globeRef.current?.pointOfView()?.altitude
   }, [])
 
   // Высота точки берётся из даты (alt кластера); без неё — у поверхности.
@@ -426,13 +411,21 @@ export function UsersGlobe() {
     )
   }
 
+  if (contextLost) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-slate-500">
+        {t.commandCenter.globeFallback}
+      </div>
+    )
+  }
+
   return (
     <div ref={containerRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
       <Globe
         ref={globeRef}
         globeImageUrl={dayTextureUrl}
-        bumpImageUrl={BUMP_TEXTURE_URL}
-        globeTileEngineUrl={tilesOn ? esriTileUrl : null}
+        bumpImageUrl={null}
+        globeTileEngineUrl={null}
         onZoom={handleZoom}
         onGlobeReady={handleGlobeReady}
         backgroundColor="rgba(0,0,0,0)"

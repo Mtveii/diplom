@@ -406,12 +406,21 @@ export default function DashboardPage() {
               {t.dashboard.nobodyOnline}
             </div>
           ) : (
+<<<<<<< HEAD
             <div className="flex flex-col gap-1">
                 {[...onlineUsers]
                   .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
                   .map((member, index) => (
                     <div
                       key={member.steamId || `member-${index}`}
+=======
+            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto pr-1">
+              {[...onlineUsers]
+                .sort((a, b) => (a.currentGame ? -1 : 0) - (b.currentGame ? -1 : 0))
+                .map((member) => (
+                  <div
+                    key={member.steamId}
+>>>>>>> 3141efc6689e4e3cb916d5aac243b456869a0de1
                     className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-800/60"
                   >
                     <span
@@ -425,6 +434,7 @@ export default function DashboardPage() {
                         {member.city && member.country
                           ? `${member.city}, ${member.country}`
                           : t.geo.unknown}
+                        {member.status ? ` · ${member.status}` : ''}
                       </span>
                     </span>
                     {member.currentGame ? (

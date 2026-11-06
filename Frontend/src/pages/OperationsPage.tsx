@@ -354,7 +354,7 @@ export default function OperationsPage() {
             {geoStats.countries.length > 0 && (
               <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-500">{t.operations.countries}</div>
             )}
-            <div className="flex flex-col">
+            <div className="flex max-h-48 flex-col overflow-y-auto pr-1">
               {geoStats.countries.map(([name, count]) => (
                 <div key={`country-${name}`} className="flex items-center gap-2 py-1 text-xs">
                   <span className="w-24 shrink-0 truncate text-slate-300" title={name}>
@@ -373,7 +373,7 @@ export default function OperationsPage() {
             {geoStats.cities.length > 0 && (
               <div className="mb-1 mt-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">{t.operations.cities}</div>
             )}
-            <div className="flex flex-col">
+            <div className="flex max-h-48 flex-col overflow-y-auto pr-1">
               {geoStats.cities.map(([name, count]) => (
                 <div key={`city-${name}`} className="flex items-center gap-2 py-1 text-xs">
                   <span className="w-24 shrink-0 truncate text-slate-300" title={name}>

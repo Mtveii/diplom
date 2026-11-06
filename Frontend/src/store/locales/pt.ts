@@ -19,7 +19,7 @@ function pluralPlayers(count: number): string {
 
 export const pt: Dictionary = {
   common: {
-    appName: 'Steam Users Admin',
+    appName: 'Slush Users Admin',
     loading: 'A carregar...',
     retry: 'Tentar de novo',
     cancel: 'Cancelar',
