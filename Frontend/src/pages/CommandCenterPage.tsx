@@ -189,7 +189,7 @@ export default function CommandCenterPage() {
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-900/40 pb-2 px-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 font-black tracking-wider text-lg sm:text-xl italic bg-gradient-to-r from-orange-500 via-amber-400 to-primary-400 bg-clip-text text-transparent">
-            <span>STEAM</span>
+            <span>SLUSH</span>
             <span className="hidden min-[420px]:inline text-xs font-normal not-italic text-slate-400 tracking-normal border-l border-slate-700 pl-2">
               {t.commandCenter.brandSub}
             </span>

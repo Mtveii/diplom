@@ -18,10 +18,12 @@ import { useAuthStore } from '@/store/authStore'
 import { useForecastStore } from '@/store/forecastStore'
 import { canManageAlerts } from '@/utils/role'
 import { useWatchlist } from '@/hooks/useWatchlist'
+import { useGogGameDetails } from '@/hooks/useGogGameDetails'
+import { isHtml, sanitizeHtml } from '@/utils/sanitize'
 import { SHOW_ALL_MIN_R2, buildSeriesForecast, forecastDirection, forecastHorizon, inferStepMs, type AppliedForecast, type DeltaItem } from '@/utils/forecast'
 import { formatDay, formatFullDateTime, formatRelativeDate } from '@/utils/format'
 import type { GameDetailsDto, UnifiedGameDto } from '@/types/catalog'
-import type { GameMonitorDto } from '@/types/monitoring'
+import type { ActivityPointDto, GameMonitorDto, TopGamesPointDto } from '@/types/monitoring'
 import type { SteamNewsItemDto } from '@/types/steam'
 import {
   CartesianGrid,
@@ -51,11 +53,17 @@ function formatMoney(value: number | null | undefined, freeLabel: string): strin
   return value > 0 ? `$${value.toFixed(2)}` : freeLabel
 }
 
-export default function GameDetailPage() {
+interface GameDetailPageProps {
+  embedded?: boolean
+  initialGame?: UnifiedGameDto | null
+  onOpenDetail?: () => void
+}
+
+export default function GameDetailPage({ embedded = false, initialGame = null, onOpenDetail }: GameDetailPageProps = {}) {
   const location = useLocation()
   const params = useParams()
   const { t, locale } = useLocale()
-  const stateGame = (location.state?.game as UnifiedGameDto | undefined) ?? null
+  const stateGame = initialGame ?? (location.state?.game as UnifiedGameDto | undefined) ?? null
   // Прямой URL/рефреш без state: подтягиваем игру по :id с бэкенда.
   const [resolvedGame, setResolvedGame] = useState<UnifiedGameDto | null>(null)
   const [resolveFailed, setResolveFailed] = useState(false)
@@ -86,6 +94,17 @@ export default function GameDetailPage() {
   const [news, setNews] = useState<SteamNewsItemDto[]>([])
   const [loading, setLoading] = useState(false)
   const [periodDays, setPeriodDays] = useState(90)
+
+  const { details: gogDetails, loading: gogLoading } = useGogGameDetails(game?.sourceUrls?.gog ?? null)
+
+  const [activityPoints, setActivityPoints] = useState<ActivityPointDto[]>([])
+  const [topGames, setTopGames] = useState<TopGamesPointDto[]>([])
+  useEffect(() => {
+    let cancelled = false
+    void monitoringApi.activity('week').then((data) => { if (!cancelled) setActivityPoints(data) }).catch(() => {})
+    void monitoringApi.gameTrends().then((data) => { if (!cancelled) setTopGames(data) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const appId = game?.steamAppId ?? null
   const monitored = isMonitored(appId)
@@ -295,23 +314,31 @@ export default function GameDetailPage() {
   ]
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-5">
+    <div className={embedded ? 'flex flex-col gap-5' : 'flex h-full min-h-0 flex-col gap-5'}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Breadcrumbs>{game.name}</Breadcrumbs>
-          <h1 className="mt-2 text-[26px] font-bold leading-tight text-white">{game.name}</h1>
+          {!embedded && <Breadcrumbs>{game.name}</Breadcrumbs>}
+          {!embedded && <h1 className="mt-2 text-[26px] font-bold leading-tight text-white">{game.name}</h1>}
+          {embedded && <h2 className="mt-2 text-xl font-bold leading-tight text-white">{game.name}</h2>}
           <p className="mt-1 text-sm text-slate-400">
             {game.genres[0] ?? t.catalog.noGenre} · {game.platforms.join(' / ') || t.catalog.platformNa}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/games" className="btn-ghost">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5" />
-              <path d="M12 19l-7-7 7-7" />
-            </svg>
-            {t.gameDetail.back}
-          </Link>
+          {!embedded && (
+            <Link to="/games" className="btn-ghost">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5" />
+                <path d="M12 19l-7-7 7-7" />
+              </svg>
+              {t.gameDetail.back}
+            </Link>
+          )}
+          {embedded && onOpenDetail && (
+            <button onClick={onOpenDetail} className="btn-ghost">
+              {t.catalog.fullPage}
+            </button>
+          )}
           {appId != null && (
             <button
               onClick={() => toggleMonitor(appId)}
@@ -359,7 +386,7 @@ export default function GameDetailPage() {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+      <div className={embedded ? 'flex flex-col gap-5' : 'min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1'}>
         {tab === 'overview' && (
           <div className="flex flex-col gap-5">
             {detailImage && (
@@ -374,12 +401,71 @@ export default function GameDetailPage() {
                 <div className="card-header-hud mb-2">
                   <h3 className="card-header-hud__title">{t.gameDetail.description}</h3>
                 </div>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{detailDescription}</p>
+                {isHtml(detailDescription) ? (
+                  <div
+                    className="prose prose-invert max-w-none text-sm leading-relaxed text-slate-300"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(detailDescription) }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{detailDescription}</p>
+                )}
               </div>
             )}
             {details && (
               <GameDetailsExtra gameName={game.name} tags={details.tags} screenshots={details.screenshots} dlcs={details.dlcs} />
             )}
+
+            {!gogLoading && gogDetails?.description && (
+              <div className="card card-hud p-5">
+                <div className="card-header-hud mb-2">
+                  <h3 className="card-header-hud__title">{t.catalog.gogDescription}</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-surface-700/40 bg-surface-900/40 p-3.5 pr-1">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{gogDetails.description}</p>
+                </div>
+              </div>
+            )}
+
+            {!gogLoading && gogDetails?.systemRequirements && (
+              <div className="card card-hud p-5">
+                <div className="card-header-hud mb-2">
+                  <h3 className="card-header-hud__title">{t.catalog.gogRequirements}</h3>
+                </div>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{gogDetails.systemRequirements}</p>
+              </div>
+            )}
+
+            <div className="card card-hud p-5">
+              <div className="card-header-hud mb-3">
+                <h3 className="card-header-hud__title">{t.catalog.tabMonitoring ?? 'Онлайн и активность'}</h3>
+              </div>
+              {activityPoints.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <ComposedChart data={activityPoints.map((p) => ({ timestamp: formatDay(p.timestamp, locale), online: p.onlineCount }))} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="timestamp" tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={{ stroke: chartTheme.axisLine }} tickLine={false} />
+                    <YAxis tick={{ fill: chartTheme.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: chartTheme.tooltip.background, border: chartTheme.tooltip.border, borderRadius: chartTheme.tooltip.borderRadius, boxShadow: chartTheme.tooltip.boxShadow, fontSize: chartTheme.tooltip.fontSize }} />
+                    <Line dataKey="online" name="Online" stroke="#38bdf8" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState title={t.catalog.noMonitorGame ?? 'Нет данных'} description={t.catalog.openCardHint ?? ''} />
+              )}
+              {topGames.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Топ игр</h4>
+                  <ul className="flex flex-col gap-1 text-sm text-slate-300">
+                    {topGames.slice(0, 5).map((g) => (
+                      <li key={g.name} className="flex justify-between border-b border-surface-800/60 pb-1">
+                        <span className="truncate">{g.name}</span>
+                        <span className="text-slate-400">{g.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
             <div className="card card-hud p-5">
               <div className="card-header-hud mb-3">
                   <h3 className="card-header-hud__title">{t.gameDetail.mainData}</h3>
