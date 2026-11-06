@@ -10,6 +10,7 @@ import Spinner from '@/components/Spinner'
 import StatCard from '@/components/StatCard'
 import { catalogApi } from '@/services/api/catalog.api'
 import { useAlerts } from '@/hooks/useAlerts'
+import { useCatalog } from '@/hooks/useCatalog'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useLocale } from '@/hooks/useLocale'
 import { useAuthStore } from '@/store/authStore'
@@ -38,7 +39,7 @@ interface FilterState {
   source: string
 }
 
-function CatalogGridSkeleton() {
+function CatalogGridSkeleton({ columns = 5 }: { columns?: number }) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       {/* Заголовок страницы */}
@@ -75,9 +76,9 @@ function CatalogGridSkeleton() {
           {/* Сетка карточек — та же геометрия, что у реального каталога */}
           <div
             className="grid gap-4"
-            style={{ gridTemplateColumns: `repeat(${COLUMNS_PER_ROW}, minmax(0, ${CARD_WIDTH}px))` }}
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, ${CARD_WIDTH}px))` }}
           >
-            {Array.from({ length: COLUMNS_PER_ROW * 2 }).map((_, index) => (
+            {Array.from({ length: columns * 2 }).map((_, index) => (
               <div key={index} className="overflow-hidden rounded-2xl border border-surface-700/40">
                 <div className="aspect-[16/9] w-full animate-pulse bg-surface-800/70" />
                 <div className="space-y-2 p-3.5">
@@ -299,7 +300,7 @@ export default function GameMonitorPage() {
   )
 
   if (loading) {
-    return <CatalogGridSkeleton />
+    return <CatalogGridSkeleton columns={COLUMNS_PER_ROW} />
   }
 
   const renderGridRow = (start: number, count: number) => {
