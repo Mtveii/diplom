@@ -89,7 +89,7 @@ export const monitoringApi = {
   /** Топ игр по числу игроков (для графика «Топ-5 игр» на дашборде). */
   gameTrends: () =>
     httpClient
-      .get<SlushGameTrendPointDto[]>('/Monitoring/game-trends')
+      .get<SlushGameTrendPointDto[]>('/Monitoring/game-trends', { params: { _t: Date.now() } })
       .then((r): TopGamesPointDto[] => r.data.map((point) => ({ name: point.gameName, count: point.playerCount }))),
 
   topPlayers: async (_period: string, _limit = 10): Promise<TopPlayerDto[]> => {
