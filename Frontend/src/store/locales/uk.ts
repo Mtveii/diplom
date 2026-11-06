@@ -484,7 +484,7 @@ export const uk = {
     totalMembers: 'Всього учасників',
     activeOnline: 'Активних у мережі',
     ranksRoles: 'Ранги й ролі',
-    steamSessions: 'Сесії Steam',
+    steamSessions: 'Сесії Slush',
     userReadiness: 'Готовність користувачів',
     distribution: 'Розподіл даних',
     onlineLabel: 'Онлайн',

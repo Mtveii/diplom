@@ -470,7 +470,7 @@ export const es: Dictionary = {
     totalMembers: 'Miembros totales',
     activeOnline: 'Activos en línea',
     ranksRoles: 'Rangos y roles',
-    steamSessions: 'Sesiones Steam',
+    steamSessions: 'Sesiones Slush',
     userReadiness: 'Disponibilidad',
     distribution: 'Distribución de datos',
     onlineLabel: 'En línea',

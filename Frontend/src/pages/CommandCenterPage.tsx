@@ -133,8 +133,12 @@ export default function CommandCenterPage() {
     }
 
     void load()
+    const timer = window.setInterval(() => {
+      if (!cancelled) void load()
+    }, 10_000)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
     }
   }, [])
 

@@ -481,7 +481,7 @@ export const cs: Dictionary = {
     totalMembers: 'Členů celkem',
     activeOnline: 'Aktivní v síti',
     ranksRoles: 'Hodnosti a role',
-    steamSessions: 'Relace Steam',
+    steamSessions: 'Relace Slush',
     userReadiness: 'Připravenost',
     distribution: 'Rozdělení dat',
     onlineLabel: 'Online',

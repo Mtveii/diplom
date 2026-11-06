@@ -469,7 +469,7 @@ export const tr: Dictionary = {
     totalMembers: 'Toplam üye',
     activeOnline: 'Aktif çevrimiçi',
     ranksRoles: 'Rütbe ve roller',
-    steamSessions: 'Steam oturumları',
+    steamSessions: 'Slush oturumları',
     userReadiness: 'Hazırlık',
     distribution: 'Veri dağılımı',
     onlineLabel: 'Çevrimiçi',
