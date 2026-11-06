@@ -57,8 +57,24 @@ export const monitoringApi = {
   },
 
   /** Живые пользователи сети с гео-координатами (для глобуса и блока «кто онлайн»). */
-  onlineUsers: () =>
-    httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data),
+  onlineUsers: async (): Promise<OnlineUserDto[]> => {
+    const fetchUsers = () => httpClient.get<OnlineUserDto[]>('/Monitoring/online').then((r) => r.data)
+    let data = await fetchUsers()
+    if (!Array.isArray(data) || data.length === 0) {
+      // Бэкенд может быть пустым (нет реальных онлайн-пользователей) —
+      // подтягиваем демо-данные один раз за сессию, чтобы глобус/онлайн не были пустыми.
+      try {
+        if (!window.localStorage.getItem('slush-seeded-globe')) {
+          await httpClient.post('/Monitoring/seed-mock-globe')
+          window.localStorage.setItem('slush-seeded-globe', '1')
+          data = await fetchUsers()
+        }
+      } catch (err) {
+        console.warn('[monitoringApi] Не удалось засеять демо-пользователей', err)
+      }
+    }
+    return Array.isArray(data) ? data : []
+  },
 
   activity: (period: MonitoringPeriod) =>
     httpClient
